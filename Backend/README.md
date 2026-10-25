@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BEN Backend
 
-## Getting Started
+Next.js Route Handlers 기반의 BEN 백엔드입니다. 현재 사용자, 고객사 계정, 메인/서브계정, 자체 로그인, Google/Kakao/Naver OAuth, JWT와 Redis 세션을 구현합니다.
 
-First, run the development server:
+## 로컬 실행
 
 ```bash
+cp .env.example .env.local
+docker compose up -d
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+기본 주소는 `http://localhost:3000`입니다. 프런트엔드는 `.env.local`의 `FRONTEND_URL`에 맞춥니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 인증 정책
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- 고객사별 메인계정 1개, 서브계정 여러 개
+- 고객사 코드는 메인계정이 직접 선택하며 서브 로그인에만 사용
+- 메인 로그인: 이메일 + 비밀번호 또는 SSO (고객사 코드 불필요)
+- 서브 로그인: 고객사 코드 + 로그인 ID + 비밀번호 또는 고객사 코드 + SSO
+- 서브 SSO 전용 계정: 메인이 이메일/제공자를 지정해 초대하고 이메일 일치 확인 후 활성화
+- Access Token: JWT, 기본 15분
+- Refresh Token: JWT, 기본 7일
+- Redis: 세션과 Refresh Token SHA-256 해시 저장
+- Refresh Token: 사용할 때마다 회전하며 이전 토큰 재사용 시 세션 폐기
+- 브라우저: HttpOnly 쿠키 사용
+- API 클라이언트: 로그인 응답의 Access Token을 Bearer 토큰으로 사용 가능
 
-## Learn More
+## 명령어
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run lint
+npm test
+npm run build
+npm run db:generate
+npm run db:migrate
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+API 명세는 [docs/openapi.yaml](docs/openapi.yaml), 데이터 모델은 [docs/user-auth-erd.md](docs/user-auth-erd.md), 작업 규칙은 [Agent.md](Agent.md)를 참고합니다.
