@@ -1,0 +1,794 @@
+openapi: 3.1.0
+info:
+  title: BEN Backend API
+  version: 1.0.0
+  description: |
+    BEN 사용자 인증 및 고객사 서브계정 관리 API 명세입니다.
+    Access Token은 응답 본문과 HttpOnly 쿠키로, Refresh Token은 HttpOnly 쿠키로 발급됩니다.
+servers:
+  - url: http://localhost:3000
+    description: 로컬 개발 서버
+
+tags:
+  - name: Main Auth
+    description: 메인계정 가입과 로그인
+  - name: Sub Auth
+    description: 서브계정 로그인
+  - name: OAuth
+    description: Google, Kakao, Naver SSO
+  - name: Session
+    description: 현재 사용자와 JWT 세션
+  - name: Sub Accounts
+    description: 메인 OWNER의 서브계정 관리
+
+paths:
+  /api/auth/main/register:
+    post:
+      tags: [Main Auth]
+      summary: 메인계정 및 고객사 가입
+      operationId: registerMainAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MainRegisterRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/MainRegisterRequest"
+      responses:
+        "201":
+          description: 가입 및 로그인 성공
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MainRegisterResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/main/login:
+    post:
+      tags: [Main Auth]
+      summary: 메인계정 자체 로그인
+      description: 메인계정은 고객사 코드 없이 이메일과 비밀번호로 로그인합니다.
+      operationId: loginMainAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MainLoginRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/MainLoginRequest"
+      responses:
+        "200":
+          description: 로그인 성공
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/sub/login:
+    post:
+      tags: [Sub Auth]
+      summary: 서브계정 자체 로그인
+      description: 고객사 코드, 고객사 내부 로그인 ID와 비밀번호가 필요합니다.
+      operationId: loginSubAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubLoginRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/SubLoginRequest"
+      responses:
+        "200":
+          description: 로그인 성공
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/refresh:
+    post:
+      tags: [Session]
+      summary: Access/Refresh Token 회전
+      description: ben_refresh_token HttpOnly 쿠키가 필요하며 세션의 7일 절대 만료시간은 연장되지 않습니다.
+      operationId: refreshSession
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: 토큰 회전 성공
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/logout:
+    post:
+      tags: [Session]
+      summary: 로그아웃
+      description: Refresh Token이 유효하면 Redis 세션을 폐기하며 항상 멱등적으로 처리합니다.
+      operationId: logout
+      security:
+        - refreshCookie: []
+      responses:
+        "200":
+          description: 로그아웃 완료
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /api/auth/me:
+    get:
+      tags: [Session]
+      summary: 현재 사용자와 고객사 정보 조회
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      responses:
+        "200":
+          description: 현재 인증 컨텍스트
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/main/oauth/{provider}/register:
+    post:
+      tags: [OAuth]
+      summary: SSO 메인계정 가입 URL 생성
+      operationId: createMainOAuthRegistrationUrl
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MainOAuthRegisterRequest"
+      responses:
+        "200":
+          description: 외부 SSO 인증 URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationUrlResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/main/oauth/{provider}/start:
+    get:
+      tags: [OAuth]
+      summary: 메인계정 SSO 로그인 시작
+      operationId: startMainOAuthLogin
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      responses:
+        "307": { $ref: "#/components/responses/OAuthRedirect" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/sub/oauth/{provider}/start:
+    get:
+      tags: [OAuth]
+      summary: 서브계정 SSO 로그인 시작
+      operationId: startSubOAuthLogin
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+        - name: accountCode
+          in: query
+          required: true
+          description: 로그인할 고객사 코드
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 30
+            example: ben
+      responses:
+        "307": { $ref: "#/components/responses/OAuthRedirect" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/oauth/{provider}/link/start:
+    get:
+      tags: [OAuth]
+      summary: 현재 계정에 SSO 연결 시작
+      description: 자체 로그인된 계정에 SSO를 연결하고 인증 방식을 BOTH로 변경합니다.
+      operationId: startOAuthLink
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+      responses:
+        "307": { $ref: "#/components/responses/OAuthRedirect" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/invitations/{token}/oauth/{provider}/start:
+    get:
+      tags: [OAuth]
+      summary: SSO 전용 서브계정 초대 수락 시작
+      operationId: startInvitationOAuth
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/OAuthProvider"
+      responses:
+        "307": { $ref: "#/components/responses/OAuthRedirect" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: 만료, 취소 또는 이미 사용된 초대
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/auth/oauth/{provider}/callback:
+    get:
+      tags: [OAuth]
+      summary: 공통 OAuth 콜백
+      description: OAuth 제공자가 호출합니다. 처리 후 FRONTEND_URL/auth/callback로 성공 또는 오류 정보를 담아 이동합니다.
+      operationId: handleOAuthCallback
+      parameters:
+        - $ref: "#/components/parameters/OAuthProvider"
+        - name: code
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          schema: { type: string }
+        - name: error
+          in: query
+          schema: { type: string }
+      responses:
+        "307":
+          description: 프런트엔드 인증 결과 화면으로 이동
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+            Set-Cookie:
+              schema: { type: string }
+
+  /api/accounts/sub-users:
+    get:
+      tags: [Sub Accounts]
+      summary: 서브계정 목록 조회
+      description: 현재 고객사의 메인 OWNER만 호출할 수 있습니다.
+      operationId: listSubAccounts
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      responses:
+        "200":
+          description: 서브계정 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SubAccount"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [Sub Accounts]
+      summary: 서브계정 생성
+      description: |
+        메인 OWNER만 호출할 수 있습니다. LOCAL_ONLY/BOTH에는 loginId와 password가 필요하고,
+        SSO_ONLY/BOTH에는 provider가 필요합니다. SSO_ONLY이면 INVITED 상태와 일회용 invitationUrl을 반환합니다.
+      operationId: createSubAccount
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubAccountRequest"
+      responses:
+        "201":
+          description: 서브계정 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateSubAccountResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /api/accounts/sub-users/{memberId}:
+    patch:
+      tags: [Sub Accounts]
+      summary: 서브계정 역할, 권한 또는 상태 수정
+      operationId: updateSubAccount
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubAccountRequest"
+      responses:
+        "200":
+          description: 변경된 account_members 레코드
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountMember"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    delete:
+      tags: [Sub Accounts]
+      summary: 서브계정 비활성화
+      description: 물리 삭제하지 않고 DISABLED로 변경하며 해당 멤버의 Redis 세션을 전부 폐기합니다.
+      operationId: disableSubAccount
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: 비활성화 성공
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: ben_access_token
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: ben_refresh_token
+
+  parameters:
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [google, kakao, naver]
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    OAuthRedirect:
+      description: OAuth 제공자의 로그인 화면으로 이동
+      headers:
+        Location:
+          schema: { type: string, format: uri }
+    BadRequest:
+      description: 요청 형식 또는 값 오류
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Unauthorized:
+      description: 인증 실패 또는 세션 만료
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Forbidden:
+      description: 비활성 계정, 인증 방식 불일치 또는 권한 없음
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    NotFound:
+      description: 리소스 또는 OAuth 제공자를 찾을 수 없음
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    Conflict:
+      description: 이메일, 고객사 코드, 로그인 ID 또는 계정 연결 중복
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+    InternalError:
+      description: 서버 내부 오류
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  schemas:
+    MemberType:
+      type: string
+      enum: [MAIN, SUB]
+    MemberRole:
+      type: string
+      enum: [OWNER, ADMIN, MEMBER]
+    MemberStatus:
+      type: string
+      enum: [ACTIVE, INVITED, DISABLED]
+    AuthMethod:
+      type: string
+      enum: [LOCAL_ONLY, SSO_ONLY, BOTH]
+    OAuthProviderUpper:
+      type: string
+      enum: [GOOGLE, KAKAO, NAVER]
+
+    MainRegisterRequest:
+      type: object
+      required: [accountCode, email, password, name, accountName]
+      properties:
+        accountCode:
+          type: string
+          pattern: "^[a-zA-Z0-9-]+$"
+          minLength: 3
+          maxLength: 30
+          example: ben
+        email:
+          type: string
+          format: email
+          example: owner@ben-logistics.com
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 128
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: 홍길동
+        accountName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: 벤로지스틱스
+
+    MainLoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+
+    SubLoginRequest:
+      type: object
+      required: [accountCode, loginId, password]
+      properties:
+        accountCode:
+          type: string
+          minLength: 3
+          maxLength: 30
+          example: ben
+        loginId:
+          type: string
+          minLength: 3
+          maxLength: 120
+          example: test
+        password:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+
+    MainOAuthRegisterRequest:
+      type: object
+      required: [accountCode, accountName]
+      properties:
+        accountCode:
+          type: string
+          pattern: "^[a-zA-Z0-9-]+$"
+          minLength: 3
+          maxLength: 30
+          example: ben
+        accountName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: 벤로지스틱스
+
+    CreateSubAccountRequest:
+      type: object
+      required: [name, email]
+      properties:
+        loginId:
+          type: string
+          pattern: "^[a-zA-Z0-9._@-]+$"
+          minLength: 3
+          maxLength: 80
+          example: test
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 128
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+          example: 테스트 사용자
+        email:
+          type: string
+          format: email
+          example: test@ben-logistics.com
+        role:
+          type: string
+          enum: [ADMIN, MEMBER]
+          default: MEMBER
+        permissions:
+          type: array
+          maxItems: 100
+          default: []
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+        authMethod:
+          allOf:
+            - $ref: "#/components/schemas/AuthMethod"
+          default: SSO_ONLY
+        provider:
+          $ref: "#/components/schemas/OAuthProviderUpper"
+
+    UpdateSubAccountRequest:
+      type: object
+      minProperties: 1
+      properties:
+        role:
+          type: string
+          enum: [ADMIN, MEMBER]
+        permissions:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+        status:
+          type: string
+          enum: [ACTIVE, DISABLED]
+
+    AccountSummary:
+      type: object
+      required: [id, memberType, role]
+      properties:
+        id: { type: string, format: uuid }
+        code:
+          type: string
+          example: ben
+        memberType:
+          $ref: "#/components/schemas/MemberType"
+        role:
+          $ref: "#/components/schemas/MemberRole"
+
+    AuthResponse:
+      type: object
+      required: [accessToken, expiresAt, account]
+      properties:
+        accessToken: { type: string }
+        expiresAt:
+          type: integer
+          format: int64
+          description: Access Token 만료 Unix timestamp(초)
+        account:
+          $ref: "#/components/schemas/AccountSummary"
+
+    MainRegisterResponse:
+      allOf:
+        - $ref: "#/components/schemas/AuthResponse"
+
+    TokenResponse:
+      type: object
+      required: [accessToken, expiresAt]
+      properties:
+        accessToken: { type: string }
+        expiresAt:
+          type: integer
+          format: int64
+
+    AuthorizationUrlResponse:
+      type: object
+      required: [authorizationUrl]
+      properties:
+        authorizationUrl:
+          type: string
+          format: uri
+
+    CurrentUserResponse:
+      type: object
+      required: [userId, name, accountId, accountCode, accountName, memberId, memberType, role, permissions]
+      properties:
+        userId: { type: string, format: uuid }
+        email:
+          type: [string, "null"]
+          format: email
+        name: { type: string }
+        profileImageUrl:
+          type: [string, "null"]
+          format: uri
+        accountId: { type: string, format: uuid }
+        accountCode: { type: string }
+        accountName: { type: string }
+        memberId: { type: string, format: uuid }
+        memberType:
+          $ref: "#/components/schemas/MemberType"
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        permissions:
+          type: array
+          items: { type: string }
+
+    SubAccount:
+      type: object
+      required: [id, userId, name, email, role, authMethod, status, permissions, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        loginId:
+          type: [string, "null"]
+        name: { type: string }
+        email:
+          type: [string, "null"]
+          format: email
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        authMethod:
+          $ref: "#/components/schemas/AuthMethod"
+        ssoProvider:
+          oneOf:
+            - $ref: "#/components/schemas/OAuthProviderUpper"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/MemberStatus"
+        permissions:
+          type: array
+          items: { type: string }
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateSubAccountResponse:
+      type: object
+      required: [id, userId, loginId, name, role, authMethod, status, invitationUrl]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        loginId:
+          type: [string, "null"]
+        name: { type: string }
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        authMethod:
+          $ref: "#/components/schemas/AuthMethod"
+        status:
+          $ref: "#/components/schemas/MemberStatus"
+        invitationUrl:
+          type: [string, "null"]
+          format: uri
+
+    AccountMember:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        accountId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        type:
+          $ref: "#/components/schemas/MemberType"
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        authMethod:
+          $ref: "#/components/schemas/AuthMethod"
+        ssoProvider:
+          oneOf:
+            - $ref: "#/components/schemas/OAuthProviderUpper"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/MemberStatus"
+        permissions:
+          type: array
+          items: { type: string }
+        createdByUserId:
+          type: [string, "null"]
+          format: uuid
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: 요청 값이 올바르지 않습니다.
+        details:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
