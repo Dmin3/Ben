@@ -8,7 +8,7 @@
 /*
  * 색상: 홈 화면 시안에서 추출.
  * 면 색은 정확한 값, 글자 색(foreground 계열, 상태 글자색)은 안티앨리어싱 때문에 근사값.
- * shadcn 표준 변수(:root)에 시안 색을 넣고, shadcn에 없는 색은 @theme에 따로 둠.
+ * shadcn 표준 변수와 시안 전용 색을 :root(라이트) / .dark(다크) 두 벌로 두고, 아래 @theme inline에서 Tailwind 클래스로 연결한다.
  */
 :root {
   --background: #f4f6fa; /* 페이지 배경 */
@@ -43,30 +43,87 @@
   --sidebar-accent-foreground: #1f4fa3;
   --sidebar-border: #e8ebf2;
   --sidebar-ring: #1f4fa3;
+  /* 시안 전용 색 (shadcn에 없는 것) */
+  --primary-soft: #e8eef9;
+  --ink: #141a2e; /* 예치금 충전 버튼 */
+  --brand-green: #4caf50;
+  --divider: #f4f6f9; /* 표 행 구분선 */
+  --subtle-foreground: #8c95a7; /* 표 헤더, 흐린 글자 */
+  --warning: #b04a00;
+  --warning-soft: #fef3e2;
+  --warning-subtle: #fff8ee;
+  --danger-soft: #fdecea;
+  --danger-subtle: #fff4f3;
+  --success: #2d834a;
+  --success-soft: #e7f5ec;
 }
 
-/* shadcn에 없는 시안 전용 색 */
-@theme {
-  --color-primary-soft: #e8eef9;
-  --color-ink: #141a2e; /* 예치금 충전 버튼 */
-  --color-brand-green: #4caf50;
-  --color-divider: #f4f6f9; /* 표 행 구분선 */
-  --color-subtle-foreground: #8c95a7; /* 표 헤더, 흐린 글자 */
+/*
+ * 다크 모드: 시안이 없어 라이트 색을 기준으로 만든 값.
+ * 어두운 배경에서 대비가 나오도록 primary와 상태 색은 밝게, 배경은 남색 계열로 잡았다.
+ */
+.dark {
+  --background: #0e1320;
+  --foreground: #e6e9f2;
+  --card: #161c2a;
+  --card-foreground: #e6e9f2;
+  --popover: #1a2132;
+  --popover-foreground: #e6e9f2;
+  --primary: #4a7ddd;
+  --primary-foreground: #ffffff;
+  --secondary: #232b3b;
+  --secondary-foreground: #b6bfd1;
+  --muted: #1c2332;
+  --muted-foreground: #98a1b3;
+  --accent: #1e2c4a;
+  --accent-foreground: #8fb1f5;
+  --destructive: #f0645a;
+  --border: #2a3243;
+  --input: #323b4e;
+  --ring: #4a7ddd;
+  --chart-1: #4a7ddd;
+  --chart-2: #4cb874;
+  --chart-3: #e0893a;
+  --chart-4: #f0645a;
+  --chart-5: #7d879b;
+  --sidebar: #131926;
+  --sidebar-foreground: #98a1b3;
+  --sidebar-primary: #4a7ddd;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e2c4a;
+  --sidebar-accent-foreground: #8fb1f5;
+  --sidebar-border: #252d3d;
+  --sidebar-ring: #4a7ddd;
 
-  --color-warning: #b04a00;
-  --color-warning-soft: #fef3e2;
-  --color-warning-subtle: #fff8ee;
-
-  --color-danger-soft: #fdecea;
-  --color-danger-subtle: #fff4f3;
-
-  --color-success: #2d834a;
-  --color-success-soft: #e7f5ec;
+  --primary-soft: #1e2c4a;
+  --ink: #2c3a5c; /* 카드보다 밝게 해서 버튼이 보이게 */
+  --brand-green: #4caf50;
+  --divider: #222a39;
+  --subtle-foreground: #6f7a8e;
+  --warning: #f0a050;
+  --warning-soft: #3a2a14;
+  --warning-subtle: #261f17;
+  --danger-soft: #3d1d1d;
+  --danger-subtle: #2a1a1c;
+  --success: #5cc683;
+  --success-soft: #173326;
 }
 
 @theme inline {
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-heading: var(--font-sans);
+  --color-primary-soft: var(--primary-soft);
+  --color-ink: var(--ink);
+  --color-brand-green: var(--brand-green);
+  --color-divider: var(--divider);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-subtle: var(--danger-subtle);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -117,4 +174,9 @@
   html {
     @apply font-sans;
   }
+}
+
+/* 중국어: Pretendard에는 한자가 없어서 중국어 폰트를 바로 다음에 둔다 (한국어 폰트의 한자 모양을 피함) */
+html:lang(zh) {
+  font-family: 'Pretendard Variable', Pretendard, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
 }

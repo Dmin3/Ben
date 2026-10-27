@@ -3,9 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>ERP</title>
+    <title>BEN Logistics</title>
+    <script>
+      // 첫 화면이 그려지기 전에 다크 모드와 언어(lang)를 적용해서 깜빡임을 막는다. 키는 src/stores/settings.ts와 같아야 한다
+      try {
+        var saved = JSON.parse(localStorage.getItem('ben:settings') || '{}').state || {}
+        var theme = saved.theme || 'system'
+        var dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) document.documentElement.classList.add('dark')
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+        var lang = saved.language || (/^zh/i.test(navigator.language) ? 'zh' : /^en/i.test(navigator.language) ? 'en' : 'ko')
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
