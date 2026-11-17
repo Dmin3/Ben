@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 
 import { getEnv } from "@/lib/env";
-import type { AuthContext } from "@/lib/auth/types";
+import type { AuthContext, OnboardingContext } from "@/lib/auth/types";
 
 const encoder = new TextEncoder();
 
@@ -92,4 +92,29 @@ export async function verifyRefreshToken(token: string) {
     sessionId: payload.sid,
     expiresAt: payload.exp,
   };
+}
+
+export async function issueOnboardingToken(userId: string) {
+  const now = Math.floor(Date.now() / 1000);
+  const expiresAt = now + 1800;
+  const token = await new SignJWT({ typ: "onboarding" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuedAt(now)
+    .setExpirationTime(expiresAt)
+    .setJti(randomUUID())
+    .sign(encoder.encode(getEnv().JWT_ACCESS_SECRET));
+  return { token, expiresAt };
+}
+
+export async function verifyOnboardingToken(token: string): Promise<OnboardingContext> {
+  const { payload } = await jwtVerify(
+    token,
+    encoder.encode(getEnv().JWT_ACCESS_SECRET),
+    { algorithms: ["HS256"] },
+  );
+  if (payload.typ !== "onboarding" || !payload.sub) {
+    throw new Error("Invalid onboarding token claims");
+  }
+  return { userId: payload.sub };
 }

@@ -17,6 +17,7 @@ export const userStatusEnum = pgEnum("user_status", [
   "SUSPENDED",
   "WITHDRAWN",
 ]);
+export const systemRoleEnum = pgEnum("system_role", ["USER", "BEN_ADMIN"]);
 export const memberTypeEnum = pgEnum("member_type", ["MAIN", "SUB"]);
 export const memberRoleEnum = pgEnum("member_role", [
   "OWNER",
@@ -38,6 +39,13 @@ export const authMethodEnum = pgEnum("auth_method", [
   "SSO_ONLY",
   "BOTH",
 ]);
+export const membershipRequestStatusEnum = pgEnum("membership_request_status", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+  "CANCELLED",
+  "UNMATCHED",
+]);
 
 export const users = pgTable(
   "users",
@@ -47,6 +55,7 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     name: text("name").notNull(),
     profileImageUrl: text("profile_image_url"),
+    systemRole: systemRoleEnum("system_role").notNull().default("USER"),
     status: userStatusEnum("status").notNull().default("ACTIVE"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -65,6 +74,14 @@ export const accounts = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     code: text("code").notNull().unique(),
     name: text("name").notNull(),
+    customerNo: text("customer_no").unique(),
+    nameEn: text("name_en"),
+    ceoName: text("ceo_name"),
+    businessType: text("business_type"),
+    address: text("address"),
+    businessNumberHash: text("business_number_hash").unique(),
+    businessNumberLast4: text("business_number_last4"),
+    memberLimit: integer("member_limit").notNull().default(20),
     ownerUserId: uuid("owner_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -73,6 +90,66 @@ export const accounts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("accounts_owner_user_idx").on(table.ownerUserId)],
+);
+
+export const accountContacts = pgTable("account_contacts", {
+  accountId: uuid("account_id")
+    .primaryKey()
+    .references(() => accounts.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  title: text("title").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const accountAddresses = pgTable(
+  "account_addresses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    address: text("address").notNull(),
+    recipient: text("recipient").notNull(),
+    phone: text("phone").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("account_addresses_account_idx").on(table.accountId),
+    uniqueIndex("account_addresses_one_default_per_account")
+      .on(table.accountId)
+      .where(sql`${table.isDefault} = true`),
+  ],
+);
+
+export const benStaffProfiles = pgTable("ben_staff_profiles", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  phone: text("phone"),
+  description: text("description"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const accountManagerAssignments = pgTable(
+  "account_manager_assignments",
+  {
+    accountId: uuid("account_id")
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    managerUserId: uuid("manager_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("account_manager_assignments_manager_idx").on(table.managerUserId)],
 );
 
 export const accountMembers = pgTable(
@@ -112,6 +189,40 @@ export const accountMembers = pgTable(
     uniqueIndex("account_members_one_main_per_user")
       .on(table.userId)
       .where(sql`${table.type} = 'MAIN'`),
+  ],
+);
+
+export const membershipRequests = pgTable(
+  "membership_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").references(() => accounts.id, {
+      onDelete: "cascade",
+    }),
+    businessNumberHash: text("business_number_hash").notNull(),
+    status: membershipRequestStatusEnum("status").notNull().default("PENDING"),
+    reviewedByMemberId: uuid("reviewed_by_member_id").references(
+      () => accountMembers.id,
+      { onDelete: "set null" },
+    ),
+    rejectionReason: text("rejection_reason"),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("membership_requests_user_idx").on(table.userId),
+    index("membership_requests_account_status_idx").on(
+      table.accountId,
+      table.status,
+    ),
   ],
 );
 

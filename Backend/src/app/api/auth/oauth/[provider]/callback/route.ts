@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { setAuthCookies } from "@/lib/auth/cookies";
+import {
+  clearOnboardingCookie,
+  setAuthCookies,
+  setOnboardingCookie,
+} from "@/lib/auth/cookies";
+import { issueOnboardingToken } from "@/lib/auth/jwt";
 import { consumeOAuthState, exchangeOAuthCode } from "@/lib/auth/oauth";
 import { completeOAuth } from "@/lib/auth/service";
 import { OAUTH_PROVIDERS, type OAuthProvider } from "@/lib/auth/types";
@@ -27,10 +32,22 @@ export async function GET(request: NextRequest, context: Context) {
     const state = await consumeOAuthState(provider as OAuthProvider, stateValue);
     const profile = await exchangeOAuthCode(provider as OAuthProvider, code);
     const result = await completeOAuth(profile, state);
+    if (result.kind === "ONBOARDING") {
+      frontend.searchParams.set("success", "1");
+      frontend.searchParams.set("result", "ONBOARDING");
+      if (result.requestStatus) {
+        frontend.searchParams.set("membershipStatus", result.requestStatus);
+      }
+      const response = NextResponse.redirect(frontend);
+      setOnboardingCookie(response, await issueOnboardingToken(result.userId));
+      return response;
+    }
     frontend.searchParams.set("success", "1");
+    frontend.searchParams.set("result", "AUTHENTICATED");
     frontend.searchParams.set("accountType", result.context.memberType);
     const response = NextResponse.redirect(frontend);
     setAuthCookies(response, result.tokens);
+    clearOnboardingCookie(response);
     return response;
   } catch (error) {
     const appError = error instanceof AppError ? error : null;

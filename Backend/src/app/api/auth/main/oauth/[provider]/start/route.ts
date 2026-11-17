@@ -14,7 +14,7 @@ export async function GET(_request: Request, context: Context) {
     }
     return NextResponse.redirect(
       await createOAuthAuthorizationUrl({
-        action: "MAIN_LOGIN",
+        action: "LOGIN",
         provider: provider as OAuthProvider,
       }),
     );

@@ -6,7 +6,7 @@ import { AppError, jsonError } from "@/lib/http";
 
 type Context = { params: Promise<{ provider: string }> };
 
-// Backward-compatible alias for main-account SSO login.
+// Unified SSO entry point. Unknown identities continue to company onboarding.
 export async function GET(_request: Request, context: Context) {
   try {
     const { provider } = await context.params;
@@ -15,7 +15,7 @@ export async function GET(_request: Request, context: Context) {
     }
     return NextResponse.redirect(
       await createOAuthAuthorizationUrl({
-        action: "MAIN_LOGIN",
+        action: "LOGIN",
         provider: provider as OAuthProvider,
       }),
     );
