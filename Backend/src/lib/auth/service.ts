@@ -1,12 +1,13 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq, gt, isNull, ne } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, ne, or } from "drizzle-orm";
 
 import {
   accountInvitations,
   accountMembers,
   accounts,
   localCredentials,
+  membershipRequests,
   oauthIdentities,
   users,
 } from "@/db/schema";
@@ -66,17 +67,25 @@ export async function registerMainAccount(input: {
   password: string;
   name: string;
   accountName: string;
+  businessRegistrationNumber: string;
 }) {
   const db = getDb();
   const accountCode = normalizeAccountCode(input.accountCode);
   const email = input.email.trim().toLowerCase();
-  const [existingUser, existingAccount] = await Promise.all([
+  const normalizedBusinessNumber = normalizeBusinessNumber(input.businessRegistrationNumber);
+  const businessHash = businessNumberHash(normalizedBusinessNumber);
+  const [existingUser, existingAccount, existingBusiness] = await Promise.all([
     db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1),
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, accountCode)).limit(1),
+    db.select({ id: accounts.id }).from(accounts).where(eq(accounts.businessNumberHash, businessHash)).limit(1),
   ]);
   if (existingUser.length) throw new AppError(409, "EMAIL_EXISTS", "이미 가입된 이메일입니다.");
   if (existingAccount.length) {
     throw new AppError(409, "ACCOUNT_CODE_EXISTS", "이미 사용 중인 고객사 코드입니다.");
+  }
+
+  if (existingBusiness.length) {
+    throw new AppError(409, "BUSINESS_NUMBER_EXISTS", "이미 등록된 사업자등록번호입니다.");
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -87,7 +96,13 @@ export async function registerMainAccount(input: {
       .returning();
     const [account] = await tx
       .insert(accounts)
-      .values({ code: accountCode, name: input.accountName.trim(), ownerUserId: user.id })
+      .values({
+        code: accountCode,
+        name: input.accountName.trim(),
+        ownerUserId: user.id,
+        businessNumberHash: businessHash,
+        businessNumberLast4: normalizedBusinessNumber.slice(-4),
+      })
       .returning();
     const [member] = await tx
       .insert(accountMembers)
@@ -252,8 +267,98 @@ async function findOAuthMembership(
   return match;
 }
 
+async function findAnyOAuthMembership(profile: OAuthProfile) {
+  const [match] = await getDb()
+    .select({
+      userId: users.id,
+      accountId: accounts.id,
+      memberId: accountMembers.id,
+      memberType: accountMembers.type,
+      role: accountMembers.role,
+    })
+    .from(oauthIdentities)
+    .innerJoin(users, eq(users.id, oauthIdentities.userId))
+    .innerJoin(accountMembers, eq(accountMembers.userId, users.id))
+    .innerJoin(accounts, eq(accounts.id, accountMembers.accountId))
+    .where(
+      and(
+        eq(oauthIdentities.provider, providerName(profile.provider)),
+        eq(oauthIdentities.providerSubject, profile.subject),
+        ne(accountMembers.authMethod, "LOCAL_ONLY"),
+        eq(accountMembers.status, "ACTIVE"),
+        eq(users.status, "ACTIVE"),
+        eq(accounts.active, true),
+      ),
+    )
+    .limit(1);
+  return match;
+}
+
+async function ensureOnboardingUser(profile: OAuthProfile) {
+  if (!profile.email || !profile.emailVerified) {
+    throw new AppError(400, "OAUTH_EMAIL_REQUIRED", "확인된 이메일 제공 동의가 필요합니다.");
+  }
+  const db = getDb();
+  const provider = providerName(profile.provider);
+  const [identity] = await db
+    .select({ userId: oauthIdentities.userId })
+    .from(oauthIdentities)
+    .where(
+      and(
+        eq(oauthIdentities.provider, provider),
+        eq(oauthIdentities.providerSubject, profile.subject),
+      ),
+    )
+    .limit(1);
+  if (identity) {
+    await db
+      .update(users)
+      .set({
+        name: profile.name,
+        profileImageUrl: profile.profileImageUrl,
+        lastLoginAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, identity.userId));
+    return identity.userId;
+  }
+
+  const [sameEmail] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, profile.email))
+    .limit(1);
+  if (sameEmail) {
+    throw new AppError(
+      409,
+      "OAUTH_EMAIL_ALREADY_REGISTERED",
+      "동일 이메일 계정이 있습니다. 로그인 후 SSO 연결을 진행해 주세요.",
+    );
+  }
+
+  return db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(users)
+      .values({
+        email: profile.email,
+        emailVerified: true,
+        name: profile.name,
+        profileImageUrl: profile.profileImageUrl,
+        lastLoginAt: new Date(),
+      })
+      .returning();
+    await tx.insert(oauthIdentities).values({
+      userId: user.id,
+      provider,
+      providerSubject: profile.subject,
+      emailSnapshot: profile.email,
+    });
+    return user.id;
+  });
+}
+
 async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecord) {
-  if (!state.accountCode || !state.accountName) {
+  if (!state.accountCode || !state.accountName || !state.businessRegistrationNumber) {
     throw new AppError(400, "OAUTH_SIGNUP_INVALID", "고객사 가입 정보가 없습니다.");
   }
   if (!profile.email || !profile.emailVerified) {
@@ -261,8 +366,11 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
   }
   const db = getDb();
   const accountCode = normalizeAccountCode(state.accountCode);
-  const [existingAccount, existingUser, existingIdentity] = await Promise.all([
+  const normalizedBusinessNumber = normalizeBusinessNumber(state.businessRegistrationNumber);
+  const businessHash = businessNumberHash(normalizedBusinessNumber);
+  const [existingAccount, existingBusiness, existingUser, existingIdentity] = await Promise.all([
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, accountCode)).limit(1),
+    db.select({ id: accounts.id }).from(accounts).where(eq(accounts.businessNumberHash, businessHash)).limit(1),
     db.select({ id: users.id }).from(users).where(eq(users.email, profile.email)).limit(1),
     db
       .select({ id: oauthIdentities.id })
@@ -276,6 +384,9 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
       .limit(1),
   ]);
   if (existingAccount.length) throw new AppError(409, "ACCOUNT_CODE_EXISTS", "이미 사용 중인 고객사 코드입니다.");
+  if (existingBusiness.length) {
+    throw new AppError(409, "BUSINESS_NUMBER_EXISTS", "이미 등록된 사업자등록번호입니다.");
+  }
   if (existingUser.length || existingIdentity.length) {
     throw new AppError(409, "ACCOUNT_EXISTS", "이미 가입된 사용자입니다.");
   }
@@ -293,7 +404,13 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
       .returning();
     const [account] = await tx
       .insert(accounts)
-      .values({ code: accountCode, name: state.accountName!, ownerUserId: user.id })
+      .values({
+        code: accountCode,
+        name: state.accountName!,
+        ownerUserId: user.id,
+        businessNumberHash: businessHash,
+        businessNumberLast4: normalizedBusinessNumber.slice(-4),
+      })
       .returning();
     const [member] = await tx
       .insert(accountMembers)
@@ -457,11 +574,37 @@ export async function completeOAuth(profile: OAuthProfile, state: OAuthStateReco
   if (!profile.subject || profile.subject === "undefined") {
     throw new AppError(401, "OAUTH_PROFILE_INVALID", "OAuth 사용자 식별자가 없습니다.");
   }
-  if (state.action === "MAIN_SIGNUP") return createMainFromOAuth(profile, state);
-  if (state.action === "INVITE") return acceptInvitation(profile, state);
+  if (state.action === "MAIN_SIGNUP") {
+    return { kind: "AUTHENTICATED" as const, ...(await createMainFromOAuth(profile, state)) };
+  }
+  if (state.action === "INVITE") {
+    return { kind: "AUTHENTICATED" as const, ...(await acceptInvitation(profile, state)) };
+  }
   if (state.action === "LINK") {
     const membership = await linkOAuth(profile, state);
-    return startSession(membership);
+    return { kind: "AUTHENTICATED" as const, ...(await startSession(membership)) };
+  }
+  if (state.action === "LOGIN") {
+    const membership = await findAnyOAuthMembership(profile);
+    if (membership) {
+      await getDb()
+        .update(users)
+        .set({ lastLoginAt: new Date(), updatedAt: new Date() })
+        .where(eq(users.id, membership.userId));
+      return { kind: "AUTHENTICATED" as const, ...(await startSession(membership)) };
+    }
+    const userId = await ensureOnboardingUser(profile);
+    const [request] = await getDb()
+      .select({ status: membershipRequests.status })
+      .from(membershipRequests)
+      .where(eq(membershipRequests.userId, userId))
+      .orderBy(desc(membershipRequests.requestedAt))
+      .limit(1);
+    return {
+      kind: "ONBOARDING" as const,
+      userId,
+      requestStatus: request?.status ?? null,
+    };
   }
   const membership = await findOAuthMembership(
     profile,
@@ -469,7 +612,199 @@ export async function completeOAuth(profile: OAuthProfile, state: OAuthStateReco
     state.accountCode,
   );
   await getDb().update(users).set({ lastLoginAt: new Date(), updatedAt: new Date() }).where(eq(users.id, membership.userId));
-  return startSession(membership);
+  return { kind: "AUTHENTICATED" as const, ...(await startSession(membership)) };
+}
+
+function normalizeBusinessNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (!/^\d{10}$/.test(digits)) {
+    throw new AppError(400, "INVALID_BUSINESS_NUMBER", "사업자등록번호 형식이 올바르지 않습니다.");
+  }
+  const weights = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  const numbers = [...digits].map(Number);
+  const sum = weights.reduce((total, weight, index) => total + weight * numbers[index], 0)
+    + Math.floor((numbers[8] * 5) / 10);
+  if ((10 - (sum % 10)) % 10 !== numbers[9]) {
+    throw new AppError(400, "INVALID_BUSINESS_NUMBER", "유효하지 않은 사업자등록번호입니다.");
+  }
+  return digits;
+}
+
+function businessNumberHash(value: string) {
+  return createHmac("sha256", getEnv().JWT_REFRESH_SECRET)
+    .update(normalizeBusinessNumber(value))
+    .digest("hex");
+}
+
+export async function getOnboardingStatus(userId: string) {
+  const [user] = await getDb()
+    .select({ id: users.id, email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) throw new AppError(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+  const [request] = await getDb()
+    .select({ id: membershipRequests.id, status: membershipRequests.status })
+    .from(membershipRequests)
+    .where(eq(membershipRequests.userId, userId))
+    .orderBy(desc(membershipRequests.requestedAt))
+    .limit(1);
+  return { ...user, membershipRequest: request ?? null };
+}
+
+export async function requestMembership(userId: string, businessNumber: string) {
+  const db = getDb();
+  const hash = businessNumberHash(businessNumber);
+  const [account] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(and(eq(accounts.businessNumberHash, hash), eq(accounts.active, true)))
+    .limit(1);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(membershipRequests)
+      .set({ status: "CANCELLED", updatedAt: new Date() })
+      .where(
+        and(
+          eq(membershipRequests.userId, userId),
+          or(
+            eq(membershipRequests.status, "PENDING"),
+            eq(membershipRequests.status, "UNMATCHED"),
+          ),
+        ),
+      );
+    await tx.insert(membershipRequests).values({
+      userId,
+      accountId: account?.id ?? null,
+      businessNumberHash: hash,
+      status: account ? "PENDING" : "UNMATCHED",
+    });
+  });
+  return { status: "PENDING" as const, message: "소속 승인 요청이 접수되었습니다." };
+}
+
+function assertOwner(actor: AuthContext) {
+  if (actor.memberType !== "MAIN" || actor.role !== "OWNER") {
+    throw new AppError(403, "OWNER_REQUIRED", "고객사 메인 계정 권한이 필요합니다.");
+  }
+}
+
+export async function listMembershipRequests(actor: AuthContext) {
+  assertOwner(actor);
+  return getDb()
+    .select({
+      id: membershipRequests.id,
+      userId: users.id,
+      name: users.name,
+      email: users.email,
+      status: membershipRequests.status,
+      requestedAt: membershipRequests.requestedAt,
+    })
+    .from(membershipRequests)
+    .innerJoin(users, eq(users.id, membershipRequests.userId))
+    .where(
+      and(
+        eq(membershipRequests.accountId, actor.accountId),
+        eq(membershipRequests.status, "PENDING"),
+      ),
+    )
+    .orderBy(desc(membershipRequests.requestedAt));
+}
+
+export async function approveMembershipRequest(actor: AuthContext, requestId: string) {
+  assertOwner(actor);
+  const db = getDb();
+  const [request] = await db
+    .select({
+      id: membershipRequests.id,
+      userId: membershipRequests.userId,
+      provider: oauthIdentities.provider,
+      memberLimit: accounts.memberLimit,
+    })
+    .from(membershipRequests)
+    .innerJoin(accounts, eq(accounts.id, membershipRequests.accountId))
+    .innerJoin(oauthIdentities, eq(oauthIdentities.userId, membershipRequests.userId))
+    .where(
+      and(
+        eq(membershipRequests.id, requestId),
+        eq(membershipRequests.accountId, actor.accountId),
+        eq(membershipRequests.status, "PENDING"),
+      ),
+    )
+    .limit(1);
+  if (!request) throw new AppError(404, "MEMBERSHIP_REQUEST_NOT_FOUND", "승인 요청을 찾을 수 없습니다.");
+  const [memberCount] = await db
+    .select({ value: count() })
+    .from(accountMembers)
+    .where(eq(accountMembers.accountId, actor.accountId));
+  if (Number(memberCount.value) >= request.memberLimit) {
+    throw new AppError(409, "MEMBER_LIMIT_EXCEEDED", "고객사 계정 수 한도를 초과했습니다.");
+  }
+  const [existing] = await db
+    .select({ id: accountMembers.id })
+    .from(accountMembers)
+    .where(
+      and(
+        eq(accountMembers.accountId, actor.accountId),
+        eq(accountMembers.userId, request.userId),
+      ),
+    )
+    .limit(1);
+  if (existing) throw new AppError(409, "MEMBERSHIP_EXISTS", "이미 고객사에 소속된 사용자입니다.");
+
+  return db.transaction(async (tx) => {
+    const [member] = await tx
+      .insert(accountMembers)
+      .values({
+        accountId: actor.accountId,
+        userId: request.userId,
+        type: "SUB",
+        role: "MEMBER",
+        authMethod: "SSO_ONLY",
+        ssoProvider: request.provider,
+        status: "ACTIVE",
+        createdByUserId: actor.userId,
+      })
+      .returning();
+    await tx
+      .update(membershipRequests)
+      .set({
+        status: "APPROVED",
+        reviewedByMemberId: actor.memberId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(membershipRequests.id, request.id));
+    return member;
+  });
+}
+
+export async function rejectMembershipRequest(
+  actor: AuthContext,
+  requestId: string,
+  reason?: string,
+) {
+  assertOwner(actor);
+  const [updated] = await getDb()
+    .update(membershipRequests)
+    .set({
+      status: "REJECTED",
+      reviewedByMemberId: actor.memberId,
+      rejectionReason: reason?.trim() || null,
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(membershipRequests.id, requestId),
+        eq(membershipRequests.accountId, actor.accountId),
+        eq(membershipRequests.status, "PENDING"),
+      ),
+    )
+    .returning();
+  if (!updated) throw new AppError(404, "MEMBERSHIP_REQUEST_NOT_FOUND", "승인 요청을 찾을 수 없습니다.");
+  return updated;
 }
 
 export async function createSubAccount(

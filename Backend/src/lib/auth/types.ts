@@ -7,6 +7,7 @@ export type MemberType = "MAIN" | "SUB";
 export type AuthMethod = "LOCAL_ONLY" | "SSO_ONLY" | "BOTH";
 
 export type OAuthStateAction =
+  | "LOGIN"
   | "MAIN_LOGIN"
   | "SUB_LOGIN"
   | "MAIN_SIGNUP"
@@ -19,6 +20,7 @@ export type OAuthStateRecord = {
   accountId?: string;
   accountCode?: string;
   accountName?: string;
+  businessRegistrationNumber?: string;
   userId?: string;
   memberId?: string;
   sessionId?: string;
@@ -46,4 +48,8 @@ export type OAuthProfile = {
   emailVerified: boolean;
   name: string;
   profileImageUrl: string | null;
+};
+
+export type OnboardingContext = {
+  userId: string;
 };

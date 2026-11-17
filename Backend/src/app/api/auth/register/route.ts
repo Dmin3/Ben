@@ -5,6 +5,7 @@ import { registerMainAccount } from "@/lib/auth/service";
 import { setAuthCookies } from "@/lib/auth/cookies";
 import { jsonError } from "@/lib/http";
 import { readRequestBody } from "@/lib/request-body";
+import { requireBenAdmin } from "@/lib/auth/ben-admin";
 
 const schema = z.object({
   accountCode: z
@@ -17,10 +18,12 @@ const schema = z.object({
   password: z.string().min(10).max(128),
   name: z.string().trim().min(2).max(80),
   accountName: z.string().trim().min(2).max(100),
+  businessRegistrationNumber: z.string().trim().min(10).max(12),
 });
 
 export async function POST(request: Request) {
   try {
+    requireBenAdmin(request);
     const result = await registerMainAccount(schema.parse(await readRequestBody(request)));
     const response = NextResponse.json(
       {

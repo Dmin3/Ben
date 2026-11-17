@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BEN Backend API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     BEN 사용자 인증 및 고객사 서브계정 관리 API 명세입니다.
     Access Token은 응답 본문과 HttpOnly 쿠키로, Refresh Token은 HttpOnly 쿠키로 발급됩니다.
@@ -21,10 +21,17 @@ tags:
   - name: Sub Accounts
     description: 메인 OWNER의 서브계정 관리
 
+  - name: Onboarding
+    description: SSO 최초 로그인 사용자의 고객사 소속 요청
+  - name: Membership Approval
+    description: 고객사 MAIN OWNER의 소속 승인 관리
+
 paths:
   /api/auth/main/register:
     post:
       tags: [Main Auth]
+      security:
+        - benAdminKey: []
       summary: 메인계정 및 고객사 가입
       operationId: registerMainAccount
       requestBody:
@@ -169,6 +176,8 @@ paths:
   /api/auth/main/oauth/{provider}/register:
     post:
       tags: [OAuth]
+      security:
+        - benAdminKey: []
       summary: SSO 메인계정 가입 URL 생성
       operationId: createMainOAuthRegistrationUrl
       parameters:
@@ -394,6 +403,230 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalError" }
 
+  /api/onboarding/me:
+    get:
+      tags: [Onboarding]
+      summary: 소속 없는 SSO 사용자 정보 조회
+      security:
+        - onboardingCookie: []
+      responses:
+        "200":
+          description: 사용자와 최근 소속 요청 상태
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OnboardingUser" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/onboarding/membership-requests:
+    get:
+      tags: [Onboarding]
+      summary: 본인의 최근 소속 요청 조회
+      security:
+        - onboardingCookie: []
+      responses:
+        "200":
+          description: 최근 요청 또는 null
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Onboarding]
+      summary: 사업자등록번호로 고객사 소속 승인 요청
+      description: 고객사 존재 여부와 관계없이 외부 응답은 동일합니다.
+      security:
+        - onboardingCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [businessRegistrationNumber]
+              properties:
+                businessRegistrationNumber: { type: string, example: "123-45-67890" }
+      responses:
+        "202": { description: 고객사 존재 여부를 노출하지 않는 접수 응답 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/account/membership-requests:
+    get:
+      tags: [Membership Approval]
+      summary: 현재 고객사의 승인 대기 요청 목록
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      responses:
+        "200":
+          description: 승인 대기 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MembershipRequestItem" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/account/membership-requests/{requestId}/approve:
+    post:
+      tags: [Membership Approval]
+      summary: 소속 요청 승인 및 SUB 멤버십 생성
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200": { description: 생성된 SUB 멤버십 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/account/membership-requests/{requestId}/reject:
+    post:
+      tags: [Membership Approval]
+      summary: 소속 요청 거절
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        "200": { description: 거절 처리된 요청 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/my-info:
+    get:
+      tags: [My Info]
+      summary: 내 정보 화면 전체 조회
+      description: JWT의 고객사와 회원 정보를 기준으로 프로필, 회사, 대표 연락처, 배송지, BEN 담당자, 로그인 수단을 한 번에 반환한다.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: 내 정보 전체 데이터
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyInfoResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/my-info/company:
+    patch:
+      tags: [My Info]
+      summary: 고객사 회사 정보 수정
+      description: MAIN/OWNER만 가능하며 사업자등록번호는 이 API로 변경할 수 없다.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CompanyUpdateRequest" }
+      responses:
+        "200": { description: 수정된 회사 정보 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/my-info/contact:
+    patch:
+      tags: [My Info]
+      summary: 고객사 대표 연락처 등록 또는 수정
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactRequest" }
+      responses:
+        "200": { description: 저장된 대표 연락처 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/my-info/addresses:
+    post:
+      tags: [My Info]
+      summary: 배송지 추가
+      description: MAIN/OWNER만 가능하며 첫 배송지는 자동으로 기본 배송지가 된다.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddressRequest" }
+      responses:
+        "201": { description: 생성된 배송지 }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: 배송지 최대 개수 초과 }
+
+  /api/my-info/addresses/{addressId}:
+    parameters:
+      - in: path
+        name: addressId
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [My Info]
+      summary: 배송지 수정
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddressUpdateRequest" }
+      responses:
+        "200": { description: 수정된 배송지 }
+        "404": { description: 배송지를 찾을 수 없음 }
+    delete:
+      tags: [My Info]
+      summary: 배송지 삭제
+      description: 기본 배송지는 삭제할 수 없다.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: 삭제 완료 }
+        "404": { description: 배송지를 찾을 수 없음 }
+        "409": { description: 기본 배송지 삭제 시도 }
+
+  /api/my-info/addresses/{addressId}/default:
+    put:
+      tags: [My Info]
+      summary: 기본 배송지 변경
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: addressId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: 새 기본 배송지 }
+        "404": { description: 배송지를 찾을 수 없음 }
+
+  /api/my-info/password:
+    patch:
+      tags: [My Info]
+      summary: 내 비밀번호 변경
+      description: 변경 성공 시 해당 회원의 모든 세션이 폐기되어 다시 로그인해야 한다.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PasswordChangeRequest" }
+      responses:
+        "200":
+          description: 변경 완료 및 재로그인 필요
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, reauthRequired]
+                properties:
+                  success: { type: boolean, const: true }
+                  reauthRequired: { type: boolean, const: true }
+        "401": { description: 현재 비밀번호 불일치 }
+        "409": { description: 비밀번호 로그인이 설정되지 않음 }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -408,6 +641,14 @@ components:
       type: apiKey
       in: cookie
       name: ben_refresh_token
+    onboardingCookie:
+      type: apiKey
+      in: cookie
+      name: ben_onboarding_token
+    benAdminKey:
+      type: apiKey
+      in: header
+      name: x-ben-admin-key
 
   parameters:
     OAuthProvider:
@@ -419,6 +660,13 @@ components:
         enum: [google, kakao, naver]
     MemberId:
       name: memberId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: requestId
       in: path
       required: true
       schema:
@@ -463,6 +711,36 @@ components:
           schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   schemas:
+    MembershipRequestStatus:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELLED, UNMATCHED]
+    OnboardingUser:
+      type: object
+      required: [id, name, membershipRequest]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: [string, "null"], format: email }
+        name: { type: string }
+        membershipRequest:
+          oneOf:
+            - { $ref: "#/components/schemas/MembershipRequestStatus" }
+            - { type: "null" }
+    MembershipRequestItem:
+      type: object
+      required: [id, userId, name, status, requestedAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, "null"], format: email }
+        status: { type: string, const: PENDING }
+        requestedAt: { type: string, format: date-time }
+
     MemberType:
       type: string
       enum: [MAIN, SUB]
@@ -481,7 +759,7 @@ components:
 
     MainRegisterRequest:
       type: object
-      required: [accountCode, email, password, name, accountName]
+      required: [accountCode, email, password, name, accountName, businessRegistrationNumber]
       properties:
         accountCode:
           type: string
@@ -508,6 +786,10 @@ components:
           minLength: 2
           maxLength: 100
           example: 벤로지스틱스
+
+        businessRegistrationNumber:
+          type: string
+          example: "123-45-67890"
 
     MainLoginRequest:
       type: object
@@ -544,7 +826,7 @@ components:
 
     MainOAuthRegisterRequest:
       type: object
-      required: [accountCode, accountName]
+      required: [accountCode, accountName, businessRegistrationNumber]
       properties:
         accountCode:
           type: string
@@ -557,6 +839,10 @@ components:
           minLength: 2
           maxLength: 100
           example: 벤로지스틱스
+
+        businessRegistrationNumber:
+          type: string
+          example: "123-45-67890"
 
     CreateSubAccountRequest:
       type: object
@@ -763,6 +1049,135 @@ components:
           format: uuid
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+
+    CompanyUpdateRequest:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        nameEn: { type: [string, "null"], minLength: 1, maxLength: 160 }
+        ceoName: { type: [string, "null"], minLength: 1, maxLength: 80 }
+        businessType: { type: [string, "null"], minLength: 1, maxLength: 160 }
+        address: { type: [string, "null"], minLength: 1, maxLength: 500 }
+
+    ContactRequest:
+      type: object
+      additionalProperties: false
+      required: [name, title, phone, email]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 1, maxLength: 80 }
+        phone: { type: string, pattern: '^0\d{1,2}-\d{3,4}-\d{4}$' }
+        email: { type: string, format: email, maxLength: 254 }
+
+    AddressRequest:
+      type: object
+      additionalProperties: false
+      required: [name, address, recipient, phone]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        address: { type: string, minLength: 1, maxLength: 500 }
+        recipient: { type: string, minLength: 1, maxLength: 80 }
+        phone: { type: string, pattern: '^0\d{1,2}-\d{3,4}-\d{4}$' }
+
+    AddressUpdateRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        address: { type: string, minLength: 1, maxLength: 500 }
+        recipient: { type: string, minLength: 1, maxLength: 80 }
+        phone: { type: string, pattern: '^0\d{1,2}-\d{3,4}-\d{4}$' }
+
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+        newPassword: { type: string, minLength: 10, maxLength: 128, writeOnly: true }
+
+    MyInfoResponse:
+      type: object
+      required: [profile, company, contact, addresses, benManager, account, capabilities]
+      properties:
+        profile:
+          type: object
+          required: [userId, name, companyName, customerNo, joinedAt, memberType, role]
+          properties:
+            userId: { type: string, format: uuid }
+            name: { type: string }
+            email: { type: [string, "null"], format: email }
+            profileImageUrl: { type: [string, "null"], format: uri }
+            companyName: { type: string }
+            customerNo: { type: string }
+            joinedAt: { type: string, format: date-time }
+            memberType: { $ref: "#/components/schemas/MemberType" }
+            role: { $ref: "#/components/schemas/MemberRole" }
+        company:
+          type: object
+          required: [name, nameEn, businessNo, ceoName, businessType, address, certificate]
+          properties:
+            name: { type: string }
+            nameEn: { type: [string, "null"] }
+            businessNo:
+              type: [string, "null"]
+              description: 보안을 위해 마스킹된 사업자등록번호
+              example: "***-**-*7890"
+            ceoName: { type: [string, "null"] }
+            businessType: { type: [string, "null"] }
+            address: { type: [string, "null"] }
+            certificate:
+              type: "null"
+              description: 파일 저장소 연동 전까지 null
+        contact:
+          oneOf:
+            - $ref: "#/components/schemas/ContactRequest"
+            - type: "null"
+        addresses:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/AddressRequest"
+              - type: object
+                required: [id, isDefault]
+                properties:
+                  id: { type: string, format: uuid }
+                  isDefault: { type: boolean }
+        benManager:
+          type: [object, "null"]
+          properties:
+            name: { type: string }
+            email: { type: [string, "null"], format: email }
+            title: { type: string }
+            phone: { type: [string, "null"] }
+            description: { type: [string, "null"] }
+        account:
+          type: object
+          required: [loginId, authMethod, linkedProviders, canChangePassword]
+          properties:
+            loginId: { type: [string, "null"] }
+            authMethod: { $ref: "#/components/schemas/AuthMethod" }
+            linkedProviders:
+              type: array
+              items:
+                type: object
+                required: [provider, email, linkedAt]
+                properties:
+                  provider: { $ref: "#/components/schemas/OAuthProviderUpper" }
+                  email: { type: [string, "null"], format: email }
+                  linkedAt: { type: string, format: date-time }
+            canChangePassword: { type: boolean }
+        capabilities:
+          type: object
+          required: [canEditCompany, canEditContact, canManageAddresses, canChangePassword]
+          properties:
+            canEditCompany: { type: boolean }
+            canEditContact: { type: boolean }
+            canManageAddresses: { type: boolean }
+            canChangePassword: { type: boolean }
 
     SuccessResponse:
       type: object
