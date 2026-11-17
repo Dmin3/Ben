@@ -1,13 +1,14 @@
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { yuan } from '@/lib/format'
 import type { deposit as Deposit } from '@/mocks/customer-home'
 import { CardLink } from './card-link'
 
-const yuan = (n: number) => `¥${n.toLocaleString('ko-KR')}`
-
 export function DepositCard({ deposit }: { deposit: typeof Deposit }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const shortage = Math.max(deposit.scheduled - deposit.balance, 0)
   const ratio = Math.min(deposit.balance / deposit.scheduled, 1) * 100
 
@@ -16,7 +17,7 @@ export function DepositCard({ deposit }: { deposit: typeof Deposit }) {
       <CardHeader>
         <CardTitle>{t('home.deposit.title')}</CardTitle>
         <CardAction>
-          <CardLink>{t('common.history')}</CardLink>
+          <CardLink onClick={() => navigate('/deposit')}>{t('common.history')}</CardLink>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
@@ -40,7 +41,10 @@ export function DepositCard({ deposit }: { deposit: typeof Deposit }) {
           <span className="text-muted-foreground">{t('home.deposit.due')}</span>
         </div>
 
-        <Button className="mt-auto h-10 w-full bg-ink font-semibold text-white hover:bg-ink/90 max-lg:mt-6">
+        <Button
+          className="mt-auto h-10 w-full bg-ink font-semibold text-white hover:bg-ink/90 max-lg:mt-6"
+          onClick={() => navigate('/deposit')}
+        >
           {t('home.deposit.charge')}
         </Button>
       </CardContent>

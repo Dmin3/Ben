@@ -3,9 +3,11 @@ import { ChevronLeft, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { FormProvider, useForm, type DefaultValues } from 'react-hook-form'
 import { Trans, useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { factoryOptions } from '@/mocks/new-order'
+import type { ReorderState } from '../products/reorder'
 import { BasicInfoSection } from './basic-info-section'
 import { NextSteps, OrderSummary } from './order-summary'
 import { QuantitySection } from './quantity-section'
@@ -30,6 +32,12 @@ const EMPTY: DefaultValues<NewOrderForm> = {
   destination: '',
 }
 
+/** 제작 제품의 "리오더 진행"으로 들어오면 임시저장 대신 그 제품으로 채운다 */
+function fromReorder({ productName, factoryId }: ReorderState): DefaultValues<NewOrderForm> {
+  const factory = factoryOptions.some((f) => f.value === factoryId) ? factoryId : 'ben'
+  return { ...EMPTY, productName, process: 'reorder', factory }
+}
+
 function loadDraft(): DefaultValues<NewOrderForm> {
   try {
     const raw = localStorage.getItem(DRAFT_KEY)
@@ -42,7 +50,8 @@ function loadDraft(): DefaultValues<NewOrderForm> {
 export default function NewOrder() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [defaultValues] = useState(loadDraft)
+  const reorder = (useLocation().state as { reorder?: ReorderState } | null)?.reorder
+  const [defaultValues] = useState(() => (reorder ? fromReorder(reorder) : loadDraft()))
   const form = useForm<NewOrderForm>({ resolver: zodResolver(newOrderSchema), defaultValues })
 
   const onValid = (values: NewOrderForm) => {

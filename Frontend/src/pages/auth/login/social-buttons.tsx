@@ -47,7 +47,7 @@ export function SocialButtons({ onSelect }: { onSelect: (provider: Provider) => 
           type="button"
           onClick={() => onSelect(p)}
           className={cn(
-            'relative flex h-11 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors',
+            'relative flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors',
             STYLES[p].className,
           )}
         >

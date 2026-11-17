@@ -34,6 +34,7 @@
   --chart-3: #b04a00;
   --chart-4: #b42318;
   --chart-5: #8c95a7;
+  --chart-soft: color-mix(in oklab, var(--primary) 40%, white); /* 연한 보조 막대 */
   --radius: 0.625rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #6c7486;
@@ -86,6 +87,7 @@
   --chart-3: #e0893a;
   --chart-4: #f0645a;
   --chart-5: #7d879b;
+  --chart-soft: color-mix(in oklab, var(--primary) 55%, white); /* 어두운 배경에서도 보이게 밝게 */
   --sidebar: #131926;
   --sidebar-foreground: #98a1b3;
   --sidebar-primary: #4a7ddd;
@@ -162,6 +164,16 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@theme {
+  /* 로그인 화면 칩처럼 위아래로 살짝 떠다니는 움직임 */
+  --animate-float: float 4s ease-in-out infinite;
+  @keyframes float {
+    50% {
+      transform: translateY(-6px);
+    }
+  }
 }
 
 @layer base {

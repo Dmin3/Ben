@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,13 +15,14 @@ const types = {
 
 export function TodoCard({ items }: { items: TodoItem[] }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('home.todo.title')}</CardTitle>
         <CardAction>
-          <CardLink>{t('common.viewAll')}</CardLink>
+          <CardLink onClick={() => navigate('/tasks')}>{t('common.viewAll')}</CardLink>
         </CardAction>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -34,7 +36,11 @@ export function TodoCard({ items }: { items: TodoItem[] }) {
                 <div className="truncate text-sm font-semibold">{item.title}</div>
                 <div className="truncate text-xs text-muted-foreground">{item.meta}</div>
               </div>
-              <Button variant="outline" className="border-primary/60 text-primary hover:text-primary">
+              <Button
+                variant="outline"
+                className="border-primary/60 text-primary hover:text-primary"
+                onClick={() => navigate(item.type === 'deposit' ? '/deposit' : '/tasks')}
+              >
                 {t(`home.todo.actions.${item.type}`)}
               </Button>
             </div>
