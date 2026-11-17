@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Link, useNavigate } from 'react-router'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Factory } from '@/mocks/customer-home'
@@ -15,19 +16,21 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 export function FactoryCard({ factories }: { factories: Factory[] }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('home.factory.title')}</CardTitle>
         <CardAction>
-          <CardLink>{t('common.viewAll')}</CardLink>
+          <CardLink onClick={() => navigate('/factories')}>{t('common.viewAll')}</CardLink>
         </CardAction>
       </CardHeader>
       <CardContent>
         <ul className="divide-y divide-divider">
           {factories.map((f) => (
-            <li key={f.id} className="flex items-center gap-3 py-3 first:pt-0">
+            <li key={f.id} className="py-3 first:pt-0">
+              <Link to={`/factories/${f.id}`} className="flex items-center gap-3 rounded-lg hover:bg-muted/60">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-sm font-bold">{f.name}</span>
@@ -37,6 +40,7 @@ export function FactoryCard({ factories }: { factories: Factory[] }) {
               </div>
               <Stat value={`${f.onTimeRate}%`} label={t('home.factory.onTime')} />
               <Stat value={t('units.cases', { count: f.activeOrders })} label={t('home.factory.activeOrders')} />
+              </Link>
             </li>
           ))}
         </ul>
