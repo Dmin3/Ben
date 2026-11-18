@@ -48,6 +48,7 @@ export type OAuthProfile = {
   emailVerified: boolean;
   name: string;
   profileImageUrl: string | null;
+  phone: string | null;
 };
 
 export type OnboardingContext = {

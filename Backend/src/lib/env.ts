@@ -21,6 +21,9 @@ const envSchema = z.object({
   KAKAO_CLIENT_SECRET: z.string().optional(),
   NAVER_CLIENT_ID: z.string().optional(),
   NAVER_CLIENT_SECRET: z.string().optional(),
+  SOLAPI_API_KEY: z.string().optional(),
+  SOLAPI_API_SECRET: z.string().optional(),
+  SOLAPI_SENDER_NUMBER: z.string().optional(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

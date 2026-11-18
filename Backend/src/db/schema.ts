@@ -1,8 +1,12 @@
 import {
   boolean,
+  numeric,
+  date,
+  doublePrecision,
   index,
   integer,
   jsonb,
+  primaryKey,
   pgEnum,
   pgTable,
   text,
@@ -11,6 +15,59 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+export const depositTransactions = pgTable("deposit_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id),
+  amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  description: text("description").notNull(),
+  occurredOn: date("occurred_on").notNull(),
+  orderCode: text("order_code"),
+  reversalOf: uuid("reversal_of").unique(),
+  requestKey: uuid("request_key").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [index("deposit_transactions_account_idx").on(t.accountId), uniqueIndex("deposit_request_unique").on(t.accountId, t.requestKey)]);
+
+export const depositSchedules = pgTable("deposit_schedules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id),
+  label: text("label").notNull(),
+  amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  dueOn: date("due_on").notNull(),
+  status: text("status").notNull().default("PENDING"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+});
+
+export const depositAlerts = pgTable("deposit_alerts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id),
+  type: text("type").notNull(),
+  message: text("message").notNull(),
+  link: text("link"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Small manually uploaded PDFs; migrate content to private object storage when configured.
+export const depositInvoices = pgTable("deposit_invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  accountId: uuid("account_id").notNull().references(() => accounts.id),
+  fileName: text("file_name").notNull(),
+  contentBase64: text("content_base64").notNull(),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const remittanceAccounts = pgTable("remittance_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bank: text("bank").notNull(),
+  swift: text("swift").notNull(),
+  account: text("account").notNull(),
+  holder: text("holder").notNull(),
+  address: text("address").notNull(),
+  active: boolean("active").notNull().default(true),
+});
 
 export const userStatusEnum = pgEnum("user_status", [
   "ACTIVE",
@@ -46,6 +103,10 @@ export const membershipRequestStatusEnum = pgEnum("membership_request_status", [
   "CANCELLED",
   "UNMATCHED",
 ]);
+export const factoryGradeEnum = pgEnum("factory_grade", ["EXCELLENT", "GOOD"]);
+export const factoryStatusEnum = pgEnum("factory_status", ["ACTIVE", "INACTIVE"]);
+export const accountFactoryStatusEnum = pgEnum("account_factory_status", ["ACTIVE", "ARCHIVED"]);
+export const factoryIssueTypeEnum = pgEnum("factory_issue_type", ["DELAY", "DEFECT", "ETC"]);
 
 export const users = pgTable(
   "users",
@@ -53,6 +114,8 @@ export const users = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email"),
     emailVerified: boolean("email_verified").notNull().default(false),
+    phone: text("phone"),
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
     name: text("name").notNull(),
     profileImageUrl: text("profile_image_url"),
     systemRole: systemRoleEnum("system_role").notNull().default("USER"),
@@ -65,6 +128,9 @@ export const users = pgTable(
     uniqueIndex("users_email_unique")
       .on(table.email)
       .where(sql`${table.email} is not null`),
+    uniqueIndex("users_phone_unique")
+      .on(table.phone)
+      .where(sql`${table.phone} is not null`),
   ],
 );
 
@@ -202,7 +268,9 @@ export const membershipRequests = pgTable(
     accountId: uuid("account_id").references(() => accounts.id, {
       onDelete: "cascade",
     }),
-    businessNumberHash: text("business_number_hash").notNull(),
+    businessNumberHash: text("business_number_hash"),
+    requestedLoginId: text("requested_login_id"),
+    pendingPasswordHash: text("pending_password_hash"),
     status: membershipRequestStatusEnum("status").notNull().default("PENDING"),
     reviewedByMemberId: uuid("reviewed_by_member_id").references(
       () => accountMembers.id,
@@ -300,5 +368,131 @@ export const accountInvitations = pgTable(
   (table) => [
     index("account_invitations_member_idx").on(table.memberId),
     index("account_invitations_account_idx").on(table.accountId),
+  ],
+);
+
+export const factories = pgTable(
+  "factories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    legalName: text("legal_name"),
+    countryCode: text("country_code").notNull(),
+    region: text("region").notNull(),
+    address: text("address").notNull(),
+    managerName: text("manager_name"),
+    primaryCategory: text("primary_category").notNull(),
+    grade: factoryGradeEnum("grade").notNull().default("GOOD"),
+    status: factoryStatusEnum("status").notNull().default("ACTIVE"),
+    photoUrl: text("photo_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("factories_status_idx").on(table.status),
+    index("factories_name_idx").on(table.name),
+  ],
+);
+
+export const factoryTags = pgTable(
+  "factory_tags",
+  {
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id, { onDelete: "cascade" }),
+    tag: text("tag").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.factoryId, table.tag] })],
+);
+
+export const accountFactories = pgTable(
+  "account_factories",
+  {
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id, { onDelete: "cascade" }),
+    status: accountFactoryStatusEnum("status").notNull().default("ACTIVE"),
+    memo: text("memo"),
+    firstOrderAt: timestamp("first_order_at", { withTimezone: true }),
+    lastOrderAt: timestamp("last_order_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.accountId, table.factoryId] }),
+    index("account_factories_factory_idx").on(table.factoryId),
+    index("account_factories_account_status_idx").on(table.accountId, table.status),
+  ],
+);
+
+export const factoryMetrics = pgTable(
+  "factory_metrics",
+  {
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id, { onDelete: "cascade" }),
+    deals: integer("deals").notNull().default(0),
+    totalAmount: doublePrecision("total_amount").notNull().default(0),
+    onTimeRate: doublePrecision("on_time_rate").notNull().default(0),
+    defectRate: doublePrecision("defect_rate").notNull().default(0),
+    avgLeadDays: integer("avg_lead_days").notNull().default(0),
+    yearly: jsonb("yearly")
+      .$type<Array<{ year: number; deals: number; amount: number }>>()
+      .notNull()
+      .default([]),
+    categoryShare: jsonb("category_share")
+      .$type<Array<{ name: string; deals: number }>>()
+      .notNull()
+      .default([]),
+    calculatedAt: timestamp("calculated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.accountId, table.factoryId] })],
+);
+
+export const factoryIssues = pgTable(
+  "factory_issues",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id, { onDelete: "cascade" }),
+    type: factoryIssueTypeEnum("type").notNull(),
+    title: text("title").notNull(),
+    orderCode: text("order_code"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    resolved: boolean("resolved").notNull().default(false),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("factory_issues_account_factory_idx").on(table.accountId, table.factoryId)],
+);
+
+export const factoryFiles = pgTable(
+  "factory_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    factoryId: uuid("factory_id")
+      .notNull()
+      .references(() => factories.id, { onDelete: "cascade" }),
+    accountId: uuid("account_id").references(() => accounts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    objectKey: text("object_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("factory_files_factory_idx").on(table.factoryId),
+    index("factory_files_account_idx").on(table.accountId),
   ],
 );

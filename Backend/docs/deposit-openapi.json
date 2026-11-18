@@ -1,0 +1,1303 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BEN Deposit API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "accessCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ben_access_token"
+      }
+    }
+  },
+  "paths": {
+    "/api/deposit": {
+      "get": {
+        "summary": "고객사 예치금 요약 (금액 문자열, CNY)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "balance": {
+                          "type": "string",
+                          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                        },
+                        "totalCharged": {
+                          "type": "string",
+                          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                        },
+                        "totalUsed": {
+                          "type": "string",
+                          "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                        },
+                        "asOf": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "currency": {
+                          "const": "CNY"
+                        },
+                        "next": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "format": "uuid"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "date": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "amount": {
+                                  "type": "string",
+                                  "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "label",
+                                "date",
+                                "amount"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "balance",
+                        "totalCharged",
+                        "totalUsed",
+                        "asOf",
+                        "currency",
+                        "next"
+                      ]
+                    },
+                    "alerts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    },
+                    "invoices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "fileName": {
+                            "type": "string"
+                          },
+                          "createdAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "fileName",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "remittanceAccounts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "bank": {
+                            "type": "string"
+                          },
+                          "swift": {
+                            "type": "string"
+                          },
+                          "account": {
+                            "type": "string"
+                          },
+                          "holder": {
+                            "type": "string"
+                          },
+                          "address": {
+                            "type": "string"
+                          },
+                          "active": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "bank",
+                          "swift",
+                          "account",
+                          "holder",
+                          "address",
+                          "active"
+                        ]
+                      }
+                    },
+                    "capabilities": {
+                      "type": "object",
+                      "properties": {
+                        "canRead": {
+                          "const": true
+                        },
+                        "canDownload": {
+                          "const": true
+                        },
+                        "canWrite": {
+                          "const": false
+                        }
+                      },
+                      "required": [
+                        "canRead",
+                        "canDownload",
+                        "canWrite"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "alerts",
+                    "invoices",
+                    "remittanceAccounts",
+                    "capabilities"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      }
+    },
+    "/api/deposit/transactions": {
+      "get": {
+        "summary": "거래 내역 및 필터 전 기준 잔액",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "orderId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                          },
+                          "type": {
+                            "enum": [
+                              "in",
+                              "out"
+                            ]
+                          },
+                          "balance": {
+                            "type": "string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                          },
+                          "reversalOf": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "date",
+                          "description",
+                          "orderId",
+                          "amount",
+                          "type",
+                          "balance",
+                          "reversalOf"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        },
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "in",
+                "out"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "3m",
+              "enum": [
+                "3m",
+                "6m",
+                "1y",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          }
+        ]
+      }
+    },
+    "/api/deposit/transactions/export": {
+      "get": {
+        "summary": "필터 전체 CSV 다운로드 (10000건 제한)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "UTF-8 BOM CSV",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        },
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "in",
+                "out"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "3m",
+              "enum": [
+                "3m",
+                "6m",
+                "1y",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          }
+        ]
+      }
+    },
+    "/api/deposit/alerts": {
+      "get": {
+        "summary": "알림 목록 (읽음 기록 없음)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "type": {
+                            "enum": [
+                              "correction",
+                              "topup",
+                              "confirmed"
+                            ]
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "date": {
+                            "type": "string"
+                          },
+                          "link": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type",
+                          "message",
+                          "date",
+                          "link"
+                        ]
+                      }
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          }
+        ]
+      }
+    },
+    "/api/deposit/invoices/{id}/download": {
+      "get": {
+        "summary": "본인 고객사 PDF 다운로드",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF 첨부파일",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/transactions": {
+      "get": {
+        "summary": "BEN_ADMIN 고객사 거래 조회",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "orderId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "amount": {
+                            "type": "string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                          },
+                          "type": {
+                            "enum": [
+                              "in",
+                              "out"
+                            ]
+                          },
+                          "balance": {
+                            "type": "string",
+                            "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                          },
+                          "reversalOf": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "date",
+                          "description",
+                          "orderId",
+                          "amount",
+                          "type",
+                          "balance",
+                          "reversalOf"
+                        ]
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "pageSize": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total",
+                    "page",
+                    "pageSize"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        },
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "all",
+              "enum": [
+                "all",
+                "in",
+                "out"
+              ]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "3m",
+              "enum": [
+                "3m",
+                "6m",
+                "1y",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 10
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "BEN_ADMIN 수기 입출금 등록 (동일 requestKey 재시도 가능)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "occurredOn": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "orderCode": {
+                    "type": "string"
+                  },
+                  "requestKey": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "description",
+                  "occurredOn",
+                  "requestKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/transactions/{id}/reverse": {
+      "post": {
+        "summary": "BEN_ADMIN 원거래 취소 (원본 보존)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string"
+                  },
+                  "occurredOn": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "requestKey": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "description",
+                  "occurredOn",
+                  "requestKey"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/schedules": {
+      "post": {
+        "summary": "BEN_ADMIN 차감 예정 등록 (자동 차감 없음)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^-?[0-9]+(\\.[0-9]{1,2})?$"
+                  },
+                  "dueOn": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "label",
+                  "amount",
+                  "dueOn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/schedules/{id}": {
+      "patch": {
+        "summary": "BEN_ADMIN 예정 상태 변경",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PENDING",
+                      "COMPLETED",
+                      "CANCELLED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/alerts": {
+      "post": {
+        "summary": "BEN_ADMIN 알림 등록",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "correction",
+                      "topup",
+                      "confirmed"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "link": {
+                    "enum": [
+                      "history",
+                      "invoice"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    },
+    "/api/admin/accounts/{accountId}/deposit/invoices": {
+      "post": {
+        "summary": "BEN_ADMIN PDF 등록 (2MB 한도, 현재 DB 저장)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "accessCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "fileName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "fileName"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "입력 오류"
+          },
+          "401": {
+            "description": "인증 필요"
+          },
+          "403": {
+            "description": "권한 없음"
+          },
+          "404": {
+            "description": "없는 리소스 또는 타 고객사 리소스"
+          },
+          "409": {
+            "description": "중복 취소 또는 requestKey 충돌"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ]
+    }
+  }
+}

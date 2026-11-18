@@ -37,7 +37,7 @@ function providerConfig(provider: OAuthProvider): ProviderConfig {
       profileUrl: "https://kapi.kakao.com/v2/user/me",
       clientId: env.KAKAO_CLIENT_ID,
       clientSecret: env.KAKAO_CLIENT_SECRET,
-      scope: "account_email profile_nickname profile_image",
+      scope: "account_email profile_nickname profile_image phone_number",
     },
     naver: {
       authorizeUrl: "https://nid.naver.com/oauth2.0/authorize",
@@ -136,6 +136,7 @@ export function normalizeProfile(provider: OAuthProvider, raw: unknown): OAuthPr
       emailVerified: data.email_verified === true,
       name: typeof data.name === "string" ? data.name : "Google 사용자",
       profileImageUrl: typeof data.picture === "string" ? data.picture : null,
+      phone: null,
     };
   }
   if (provider === "kakao") {
@@ -149,6 +150,7 @@ export function normalizeProfile(provider: OAuthProvider, raw: unknown): OAuthPr
       name: typeof profile.nickname === "string" ? profile.nickname : "카카오 사용자",
       profileImageUrl:
         typeof profile.profile_image_url === "string" ? profile.profile_image_url : null,
+      phone: typeof account.phone_number === "string" ? account.phone_number : null,
     };
   }
   const response = (data.response ?? {}) as Record<string, unknown>;
@@ -159,5 +161,6 @@ export function normalizeProfile(provider: OAuthProvider, raw: unknown): OAuthPr
     emailVerified: typeof response.email === "string",
     name: typeof response.name === "string" ? response.name : "네이버 사용자",
     profileImageUrl: typeof response.profile_image === "string" ? response.profile_image : null,
+    phone: typeof response.mobile === "string" ? response.mobile : null,
   };
 }
