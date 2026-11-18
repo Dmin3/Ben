@@ -21,6 +21,7 @@ import {
   sessionExists,
 } from "@/lib/auth/session-store";
 import { getEnv } from "@/lib/env";
+import { consumePhoneVerification, normalizePhone } from "@/lib/auth/phone-verification";
 import type {
   AuthContext,
   AuthMethod,
@@ -68,18 +69,23 @@ export async function registerMainAccount(input: {
   name: string;
   accountName: string;
   businessRegistrationNumber: string;
+  phone: string;
+  phoneVerificationToken: string;
 }) {
   const db = getDb();
+  const phone = await consumePhoneVerification(input.phoneVerificationToken, input.phone, "MAIN_SIGNUP");
   const accountCode = normalizeAccountCode(input.accountCode);
   const email = input.email.trim().toLowerCase();
   const normalizedBusinessNumber = normalizeBusinessNumber(input.businessRegistrationNumber);
   const businessHash = businessNumberHash(normalizedBusinessNumber);
-  const [existingUser, existingAccount, existingBusiness] = await Promise.all([
+  const [existingUser, existingPhone, existingAccount, existingBusiness] = await Promise.all([
     db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1),
+    db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1),
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, accountCode)).limit(1),
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.businessNumberHash, businessHash)).limit(1),
   ]);
   if (existingUser.length) throw new AppError(409, "EMAIL_EXISTS", "이미 가입된 이메일입니다.");
+  if (existingPhone.length) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
   if (existingAccount.length) {
     throw new AppError(409, "ACCOUNT_CODE_EXISTS", "이미 사용 중인 고객사 코드입니다.");
   }
@@ -92,7 +98,7 @@ export async function registerMainAccount(input: {
   const result = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
-      .values({ email, emailVerified: false, name: input.name.trim() })
+      .values({ email, emailVerified: false, phone, phoneVerifiedAt: new Date(), name: input.name.trim() })
       .returning();
     const [account] = await tx
       .insert(accounts)
@@ -300,6 +306,10 @@ async function ensureOnboardingUser(profile: OAuthProfile) {
   }
   const db = getDb();
   const provider = providerName(profile.provider);
+  let providerPhone: string | null = null;
+  if (profile.phone) {
+    try { providerPhone = normalizePhone(profile.phone); } catch { providerPhone = null; }
+  }
   const [identity] = await db
     .select({ userId: oauthIdentities.userId })
     .from(oauthIdentities)
@@ -335,6 +345,10 @@ async function ensureOnboardingUser(profile: OAuthProfile) {
       "동일 이메일 계정이 있습니다. 로그인 후 SSO 연결을 진행해 주세요.",
     );
   }
+  if (providerPhone) {
+    const [occupiedPhone] = await db.select({ id: users.id }).from(users).where(eq(users.phone, providerPhone)).limit(1);
+    if (occupiedPhone) throw new AppError(409, "PHONE_EXISTS", "해당 휴대폰번호로 가입된 계정이 있습니다.");
+  }
 
   return db.transaction(async (tx) => {
     const [user] = await tx
@@ -342,6 +356,8 @@ async function ensureOnboardingUser(profile: OAuthProfile) {
       .values({
         email: profile.email,
         emailVerified: true,
+        phone: providerPhone,
+        phoneVerifiedAt: providerPhone ? new Date() : null,
         name: profile.name,
         profileImageUrl: profile.profileImageUrl,
         lastLoginAt: new Date(),
@@ -365,13 +381,21 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
     throw new AppError(400, "OAUTH_EMAIL_REQUIRED", "확인된 이메일 제공 동의가 필요합니다.");
   }
   const db = getDb();
+  let phone: string | null = null;
+  if (profile.phone) {
+    try { phone = normalizePhone(profile.phone); } catch { phone = null; }
+  }
+  if (!phone) {
+    throw new AppError(400, "PHONE_VERIFICATION_REQUIRED", "SSO에서 휴대폰번호를 제공하지 않았습니다. 통합 SSO 가입 후 SMS 인증을 진행해 주세요.");
+  }
   const accountCode = normalizeAccountCode(state.accountCode);
   const normalizedBusinessNumber = normalizeBusinessNumber(state.businessRegistrationNumber);
   const businessHash = businessNumberHash(normalizedBusinessNumber);
-  const [existingAccount, existingBusiness, existingUser, existingIdentity] = await Promise.all([
+  const [existingAccount, existingBusiness, existingUser, existingPhone, existingIdentity] = await Promise.all([
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, accountCode)).limit(1),
     db.select({ id: accounts.id }).from(accounts).where(eq(accounts.businessNumberHash, businessHash)).limit(1),
     db.select({ id: users.id }).from(users).where(eq(users.email, profile.email)).limit(1),
+    db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1),
     db
       .select({ id: oauthIdentities.id })
       .from(oauthIdentities)
@@ -390,6 +414,7 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
   if (existingUser.length || existingIdentity.length) {
     throw new AppError(409, "ACCOUNT_EXISTS", "이미 가입된 사용자입니다.");
   }
+  if (existingPhone.length) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
 
   const created = await db.transaction(async (tx) => {
     const [user] = await tx
@@ -397,6 +422,8 @@ async function createMainFromOAuth(profile: OAuthProfile, state: OAuthStateRecor
       .values({
         email: profile.email,
         emailVerified: true,
+        phone,
+        phoneVerifiedAt: new Date(),
         name: profile.name,
         profileImageUrl: profile.profileImageUrl,
         lastLoginAt: new Date(),
@@ -638,7 +665,7 @@ function businessNumberHash(value: string) {
 
 export async function getOnboardingStatus(userId: string) {
   const [user] = await getDb()
-    .select({ id: users.id, email: users.email, name: users.name })
+    .select({ id: users.id, email: users.email, name: users.name, phone: users.phone, phoneVerifiedAt: users.phoneVerifiedAt })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
@@ -652,16 +679,25 @@ export async function getOnboardingStatus(userId: string) {
   return { ...user, membershipRequest: request ?? null };
 }
 
-export async function requestMembership(userId: string, businessNumber: string) {
+export async function requestMembership(userId: string, accountCode: string, rawPhone?: string, verificationToken?: string) {
   const db = getDb();
-  const hash = businessNumberHash(businessNumber);
+  const [currentUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!currentUser) throw new AppError(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+  const phone = currentUser.phone ?? (rawPhone && verificationToken
+    ? await consumePhoneVerification(verificationToken, rawPhone, "SSO_SIGNUP")
+    : null);
+  if (!phone) throw new AppError(400, "PHONE_VERIFICATION_REQUIRED", "SSO에서 휴대폰번호를 제공하지 않아 SMS 인증이 필요합니다.");
   const [account] = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.businessNumberHash, hash), eq(accounts.active, true)))
+    .where(and(eq(accounts.code, normalizeAccountCode(accountCode)), eq(accounts.active, true)))
     .limit(1);
+  if (!account) throw new AppError(404, "MAIN_ACCOUNT_NOT_FOUND", "신청할 메인계정을 찾을 수 없습니다.");
+  const [occupied] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+  if (occupied && occupied.id !== userId) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
 
   await db.transaction(async (tx) => {
+    await tx.update(users).set({ phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
     await tx
       .update(membershipRequests)
       .set({ status: "CANCELLED", updatedAt: new Date() })
@@ -676,12 +712,88 @@ export async function requestMembership(userId: string, businessNumber: string) 
       );
     await tx.insert(membershipRequests).values({
       userId,
-      accountId: account?.id ?? null,
-      businessNumberHash: hash,
-      status: account ? "PENDING" : "UNMATCHED",
+      accountId: account.id,
+      businessNumberHash: null,
+      status: "PENDING",
     });
   });
   return { status: "PENDING" as const, message: "소속 승인 요청이 접수되었습니다." };
+}
+
+export async function registerSubAccountRequest(input: {
+  mainAccountCode: string;
+  email: string;
+  password: string;
+  name: string;
+  phone: string;
+  phoneVerificationToken: string;
+}) {
+  const db = getDb();
+  const phone = await consumePhoneVerification(input.phoneVerificationToken, input.phone, "SUB_SIGNUP");
+  const email = input.email.trim().toLowerCase();
+  const [account] = await db.select({ id: accounts.id }).from(accounts)
+    .where(and(eq(accounts.code, normalizeAccountCode(input.mainAccountCode)), eq(accounts.active, true))).limit(1);
+  if (!account) throw new AppError(404, "MAIN_ACCOUNT_NOT_FOUND", "신청할 메인계정을 찾을 수 없습니다.");
+  const [sameEmail, samePhone] = await Promise.all([
+    db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1),
+    db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1),
+  ]);
+  if (sameEmail.length) throw new AppError(409, "EMAIL_EXISTS", "이미 가입된 이메일입니다.");
+  if (samePhone.length) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
+  const passwordHash = await hashPassword(input.password);
+  return db.transaction(async (tx) => {
+    const [user] = await tx.insert(users).values({
+      email, name: input.name.trim(), phone, phoneVerifiedAt: new Date(),
+    }).returning();
+    const [request] = await tx.insert(membershipRequests).values({
+      userId: user.id,
+      accountId: account.id,
+      businessNumberHash: null,
+      requestedLoginId: email,
+      pendingPasswordHash: passwordHash,
+      status: "PENDING",
+    }).returning({ id: membershipRequests.id, status: membershipRequests.status });
+    return request;
+  });
+}
+
+export async function createMainForOnboarding(userId: string, input: {
+  accountCode: string;
+  accountName: string;
+  businessRegistrationNumber: string;
+  phone?: string;
+  phoneVerificationToken?: string;
+}) {
+  const db = getDb();
+  const [user] = await db.select({ id: users.id, phone: users.phone }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new AppError(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
+  const phone = user.phone ?? (input.phone && input.phoneVerificationToken
+    ? await consumePhoneVerification(input.phoneVerificationToken, input.phone, "SSO_SIGNUP") : null);
+  if (!phone) throw new AppError(400, "PHONE_VERIFICATION_REQUIRED", "SMS 휴대폰 인증이 필요합니다.");
+  const accountCode = normalizeAccountCode(input.accountCode);
+  const businessNumber = normalizeBusinessNumber(input.businessRegistrationNumber);
+  const businessHash = businessNumberHash(businessNumber);
+  const [sameCode, sameBusiness] = await Promise.all([
+    db.select({ id: accounts.id }).from(accounts).where(eq(accounts.code, accountCode)).limit(1),
+    db.select({ id: accounts.id }).from(accounts).where(eq(accounts.businessNumberHash, businessHash)).limit(1),
+  ]);
+  if (sameCode.length) throw new AppError(409, "ACCOUNT_CODE_EXISTS", "이미 사용 중인 고객사 코드입니다.");
+  if (sameBusiness.length) throw new AppError(409, "BUSINESS_NUMBER_EXISTS", "이미 등록된 사업자등록번호입니다.");
+  const created = await db.transaction(async (tx) => {
+    await tx.update(users).set({ phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+    const [account] = await tx.insert(accounts).values({
+      code: accountCode, name: input.accountName.trim(), ownerUserId: userId,
+      businessNumberHash: businessHash, businessNumberLast4: businessNumber.slice(-4),
+    }).returning();
+    const [identity] = await tx.select({ provider: oauthIdentities.provider }).from(oauthIdentities).where(eq(oauthIdentities.userId, userId)).limit(1);
+    const [member] = await tx.insert(accountMembers).values({
+      accountId: account.id, userId, type: "MAIN", role: "OWNER", authMethod: "SSO_ONLY",
+      ssoProvider: identity?.provider ?? null, permissions: ["*"],
+    }).returning();
+    return { account, member };
+  });
+  const session = await startSession({ userId, accountId: created.account.id, memberId: created.member.id, memberType: "MAIN", role: "OWNER" });
+  return { ...session, accountCode };
 }
 
 function assertOwner(actor: AuthContext) {
@@ -720,11 +832,13 @@ export async function approveMembershipRequest(actor: AuthContext, requestId: st
       id: membershipRequests.id,
       userId: membershipRequests.userId,
       provider: oauthIdentities.provider,
+      requestedLoginId: membershipRequests.requestedLoginId,
+      pendingPasswordHash: membershipRequests.pendingPasswordHash,
       memberLimit: accounts.memberLimit,
     })
     .from(membershipRequests)
     .innerJoin(accounts, eq(accounts.id, membershipRequests.accountId))
-    .innerJoin(oauthIdentities, eq(oauthIdentities.userId, membershipRequests.userId))
+    .leftJoin(oauthIdentities, eq(oauthIdentities.userId, membershipRequests.userId))
     .where(
       and(
         eq(membershipRequests.id, requestId),
@@ -761,12 +875,20 @@ export async function approveMembershipRequest(actor: AuthContext, requestId: st
         userId: request.userId,
         type: "SUB",
         role: "MEMBER",
-        authMethod: "SSO_ONLY",
-        ssoProvider: request.provider,
+        authMethod: request.provider ? "SSO_ONLY" : "LOCAL_ONLY",
+        ssoProvider: request.provider ?? null,
         status: "ACTIVE",
         createdByUserId: actor.userId,
       })
       .returning();
+    if (request.requestedLoginId && request.pendingPasswordHash) {
+      await tx.insert(localCredentials).values({
+        memberId: member.id,
+        accountId: actor.accountId,
+        loginId: request.requestedLoginId,
+        passwordHash: request.pendingPasswordHash,
+      });
+    }
     await tx
       .update(membershipRequests)
       .set({

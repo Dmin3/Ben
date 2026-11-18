@@ -1,5 +1,9 @@
 # 사용자·계정 인증 설계
 
+> 아래 ERD는 초기 인증 설계 이력이다. 현재 전체 스키마의 기준은 `src/db/schema.ts`와 `drizzle/`이며 API는 `docs/openapi.yaml`을 따른다.
+> 2026-11-18 변경: users.phone(값이 있는 경우 전역 UNIQUE), phone_verified_at 추가. membership_requests.business_number_hash는 nullable이고 requested_login_id/pending_password_hash가 추가됐다. 신규 소속 요청은 사업자번호 대신 mainAccountCode를 사용한다.
+> 공장 6개 테이블(factories, factory_tags, account_factories, factory_metrics, factory_issues, factory_files)과 예치금 5개 테이블(deposit_transactions, deposit_schedules, deposit_alerts, deposit_invoices, remittance_accounts)이 추가됐다. 이 문서는 전체 22개 테이블 ERD가 아니다.
+
 ## 설계 기준
 
 화면 기획에는 고객의 홈, 업무, 제작제품, 공장·공급사, 예치금, 내 정보와 관리자 주문·예치금·설정·재무 기능이 포함되어 있다. 이 데이터들은 모두 고객사 단위로 분리해야 하므로 업무 테이블은 앞으로 `account_id`를 필수 외래키로 갖는다.

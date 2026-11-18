@@ -36,6 +36,34 @@
       "when": 1794906428464,
       "tag": "0004_stale_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794967627501,
+      "tag": "0005_long_jackpot",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794991302802,
+      "tag": "0006_soft_dragon_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794991471471,
+      "tag": "0007_whole_nehzno",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794992843088,
+      "tag": "0008_opposite_black_tarantula",
+      "breakpoints": true
     }
   ]
 }
