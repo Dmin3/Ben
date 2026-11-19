@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 
 const PROVIDERS = ['kakao', 'naver', 'google'] as const
-export type Provider = (typeof PROVIDERS)[number]
+type Provider = (typeof PROVIDERS)[number]
 
 // 각 사 로그인 버튼 가이드의 배경색과 심볼
 const STYLES: Record<Provider, { className: string; icon: ReactNode }> = {
@@ -36,8 +36,12 @@ const STYLES: Record<Provider, { className: string; icon: ReactNode }> = {
   },
 }
 
-/** 카카오 · 네이버 · Google 간편 로그인 버튼 */
-export function SocialButtons({ onSelect }: { onSelect: (provider: Provider) => void }) {
+/**
+ * 카카오 · 네이버 · Google 간편 로그인 버튼.
+ * 로그인과 가입이 같은 입구다: BE가 각 사 로그인 화면으로 보내고, 끝나면 /auth/callback 으로 돌아온다.
+ * 처음 온 사람이면 BE가 가입(온보딩) 상태로 돌려보낸다
+ */
+export function SocialButtons({ mode = 'login' }: { mode?: 'login' | 'signup' }) {
   const { t } = useTranslation()
   return (
     <div className="space-y-2">
@@ -45,14 +49,14 @@ export function SocialButtons({ onSelect }: { onSelect: (provider: Provider) => 
         <button
           key={p}
           type="button"
-          onClick={() => onSelect(p)}
+          onClick={() => location.assign(`/api/auth/oauth/${p}/start`)}
           className={cn(
             'relative flex h-12 w-full items-center justify-center rounded-lg text-sm font-semibold transition-colors',
             STYLES[p].className,
           )}
         >
           <span className="absolute left-4 flex size-5 items-center justify-center">{STYLES[p].icon}</span>
-          {t(`auth.social.${p}`)}
+          {t(mode === 'login' ? `auth.social.${p}` : `auth.socialStart.${p}`)}
         </button>
       ))}
     </div>

@@ -79,7 +79,7 @@ export function Sidebar({ items, user }: { items: NavItem[]; user: User }) {
           <div className="truncate text-xs text-muted-foreground">{user.company}</div>
         </div>
       </button>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} showLogout />
     </aside>
   )
 }
@@ -105,7 +105,7 @@ export function MobileHeader({ user, profileTo }: { user: User; profileTo: strin
           <Avatar name={user.name} />
         </NavLink>
       </div>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} showLogout />
     </header>
   )
 }

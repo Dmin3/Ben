@@ -82,7 +82,7 @@ function BrandHero() {
 }
 
 /** 로그인 화면 왼쪽(모바일은 위쪽) 브랜드 영역. 데스크톱에선 마우스를 따라 심볼 조각이 움직인다 */
-export function BrandPanel() {
+export function BrandPanel({ className }: { className?: string }) {
   const { t } = useTranslation()
 
   const onPointerMove = (e: PointerEvent<HTMLElement>) => {
@@ -100,7 +100,10 @@ export function BrandPanel() {
     <section
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
-      className="relative overflow-hidden px-5 pt-12 pb-10 text-center lg:flex lg:min-h-svh lg:flex-col lg:justify-between lg:border-r lg:p-10 lg:text-left xl:p-14"
+      className={cn(
+        'relative overflow-hidden px-5 pt-12 pb-10 text-center lg:flex lg:min-h-svh lg:flex-col lg:justify-between lg:border-r lg:p-10 lg:text-left xl:p-14',
+        className,
+      )}
     >
       <div aria-hidden className="pointer-events-none absolute inset-0" style={GRID} />
       {GHOSTS.map((g) => (
