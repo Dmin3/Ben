@@ -7,6 +7,7 @@ import { jsonError } from "@/lib/http";
 import { readRequestBody } from "@/lib/request-body";
 
 const schema = z.object({
+  name: z.string().trim().min(2).max(80),
   accountCode: z.string().trim().min(3).max(30).regex(/^[a-zA-Z0-9-]+$/),
   accountName: z.string().trim().min(2).max(100),
   businessRegistrationNumber: z.string().trim().min(10).max(12),

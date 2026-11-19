@@ -7,6 +7,7 @@ import { jsonError } from "@/lib/http";
 import { readRequestBody } from "@/lib/request-body";
 
 const requestSchema = z.object({
+  name: z.string().trim().min(2).max(80),
   mainAccountCode: z.string().trim().min(3).max(30),
   phone: z.string().optional(),
   phoneVerificationToken: z.string().min(20).optional(),
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     const auth = await requireOnboardingAuth(request);
     const body = requestSchema.parse(await readRequestBody(request));
     return NextResponse.json(
-      await requestMembership(auth.userId, body.mainAccountCode, body.phone, body.phoneVerificationToken),
+      await requestMembership(auth.userId, body.name, body.mainAccountCode, body.phone, body.phoneVerificationToken),
       { status: 202 },
     );
   } catch (error) {

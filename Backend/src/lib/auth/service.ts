@@ -679,7 +679,7 @@ export async function getOnboardingStatus(userId: string) {
   return { ...user, membershipRequest: request ?? null };
 }
 
-export async function requestMembership(userId: string, accountCode: string, rawPhone?: string, verificationToken?: string) {
+export async function requestMembership(userId: string, name: string, accountCode: string, rawPhone?: string, verificationToken?: string) {
   const db = getDb();
   const [currentUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, userId)).limit(1);
   if (!currentUser) throw new AppError(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
@@ -697,7 +697,7 @@ export async function requestMembership(userId: string, accountCode: string, raw
   if (occupied && occupied.id !== userId) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
 
   await db.transaction(async (tx) => {
-    await tx.update(users).set({ phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+    await tx.update(users).set({ name: name.trim(), phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
     await tx
       .update(membershipRequests)
       .set({ status: "CANCELLED", updatedAt: new Date() })
@@ -758,6 +758,7 @@ export async function registerSubAccountRequest(input: {
 }
 
 export async function createMainForOnboarding(userId: string, input: {
+  name: string;
   accountCode: string;
   accountName: string;
   businessRegistrationNumber: string;
@@ -780,7 +781,7 @@ export async function createMainForOnboarding(userId: string, input: {
   if (sameCode.length) throw new AppError(409, "ACCOUNT_CODE_EXISTS", "이미 사용 중인 고객사 코드입니다.");
   if (sameBusiness.length) throw new AppError(409, "BUSINESS_NUMBER_EXISTS", "이미 등록된 사업자등록번호입니다.");
   const created = await db.transaction(async (tx) => {
-    await tx.update(users).set({ phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
+    await tx.update(users).set({ name: input.name.trim(), phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
     const [account] = await tx.insert(accounts).values({
       code: accountCode, name: input.accountName.trim(), ownerUserId: userId,
       businessNumberHash: businessHash, businessNumberLast4: businessNumber.slice(-4),
