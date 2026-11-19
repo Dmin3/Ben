@@ -7,6 +7,10 @@ import { cn } from '@/lib/utils'
 import type { TodoItem } from '@/mocks/customer-home'
 import { CardLink } from './card-link'
 
+/** 할 일 버튼이 여는 곳: QC는 그 오더의 이미지, 지연은 그 오더 진행 현황 */
+const target = (item: TodoItem) =>
+  item.type === 'deposit' ? '/deposit' : item.type === 'qc' ? `/orders/${item.orderId}?tab=images` : `/orders/${item.orderId}`
+
 const types = {
   qc: { badge: 'warning', bg: 'bg-warning-subtle' },
   deposit: { badge: 'warning', bg: 'bg-warning-subtle' },
@@ -39,7 +43,7 @@ export function TodoCard({ items }: { items: TodoItem[] }) {
               <Button
                 variant="outline"
                 className="border-primary/60 text-primary hover:text-primary"
-                onClick={() => navigate(item.type === 'deposit' ? '/deposit' : '/tasks')}
+                onClick={() => navigate(target(item))}
               >
                 {t(`home.todo.actions.${item.type}`)}
               </Button>

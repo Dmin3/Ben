@@ -1,5 +1,6 @@
 import { Clock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { OrderProgress } from '@/components/order/order-progress'
 import { OrderStatusBadge } from '@/components/order/order-status-badge'
 import { ORDER_STEPS } from '@/components/order/steps'
@@ -47,7 +48,9 @@ export function TaskCard({ task }: { task: Task }) {
 
           <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-[15px] font-bold">{task.id}</span>
+              <Link to={`/orders/${task.id}`} className="text-[15px] font-bold hover:text-primary hover:underline">
+                {task.id}
+              </Link>
               <OrderStatusBadge status={task.status} />
             </div>
             <MetaLine

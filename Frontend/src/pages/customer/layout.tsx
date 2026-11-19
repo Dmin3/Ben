@@ -1,11 +1,13 @@
-import { ClipboardList, Factory, House, Package, UserRound, Wallet } from 'lucide-react'
+import { ClipboardList, Factory, House, Package, UserRound, Users, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useMatches } from 'react-router'
 import { BottomTabBar, MobileHeader, Sidebar, type NavItem } from '@/components/layout/sidebar'
 import { currentUser } from '@/mocks/customer-home'
+import { useMembershipRequests } from './members/data'
 
 export default function CustomerLayout() {
   const { t } = useTranslation()
+  const { data: requests = [] } = useMembershipRequests()
   const hideTabBar = useMatches().some((m) => (m.handle as { hideTabBar?: boolean } | undefined)?.hideTabBar)
 
   const menu: NavItem[] = [
@@ -14,10 +16,13 @@ export default function CustomerLayout() {
     { to: '/products', label: t('nav.products'), icon: Package },
     { to: '/factories', label: t('nav.factories'), icon: Factory },
     { to: '/deposit', label: t('nav.deposit'), icon: Wallet },
+    ...(currentUser.role === 'OWNER'
+      ? [{ to: '/members', label: t('nav.members'), icon: Users, badge: requests.length }]
+      : []),
     { to: '/me', label: t('nav.myInfo'), icon: UserRound },
   ]
-  // 모바일 하단 탭은 5칸까지. 내 정보는 상단 프로필 버튼으로 들어간다
-  const tabItems = menu.filter((m) => m.to !== '/me')
+  // 모바일 하단 탭은 5칸까지. 내 정보는 상단 프로필 버튼, 직원 관리는 내 정보 안 링크로 들어간다
+  const tabItems = menu.filter((m) => m.to !== '/me' && m.to !== '/members')
 
   return (
     <div className="flex min-h-svh">

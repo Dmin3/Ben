@@ -12,6 +12,8 @@ export type NavItem = {
   label: string
   /** 모바일 하단 탭 아이콘 */
   icon: LucideIcon
+  /** 사이드바 오른쪽 숫자 (0이면 숨김) */
+  badge?: number
 }
 
 type User = {
@@ -55,7 +57,7 @@ export function Sidebar({ items, user }: { items: NavItem[]; user: User }) {
             end
             className={({ isActive }) =>
               cn(
-                'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-primary font-semibold text-primary-foreground'
                   : 'text-sidebar-foreground hover:bg-accent hover:text-accent-foreground',
@@ -63,6 +65,11 @@ export function Sidebar({ items, user }: { items: NavItem[]; user: User }) {
             }
           >
             {item.label}
+            {!!item.badge && (
+              <span className="ml-auto rounded-full bg-destructive px-1.5 text-[11px] leading-[18px] font-bold text-white tabular-nums">
+                {item.badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
