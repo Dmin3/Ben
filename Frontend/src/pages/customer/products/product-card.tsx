@@ -11,13 +11,13 @@ import { findFactory } from '@/mocks/factories'
 import type { Product } from '@/mocks/products'
 import { useReorder } from './reorder'
 
-function QualityBadge({ quality }: { quality: Product['quality'] }) {
+export function QualityBadge({ quality }: { quality: Product['quality'] }) {
   const { t } = useTranslation()
   return <Badge variant={quality === 'A' ? 'info' : 'success'}>{t(`products.grades.${quality}`)}</Badge>
 }
 
 /** 카테고리 | 공장(링크) */
-function CategoryFactory({ product }: { product: Product }) {
+export function CategoryFactory({ product }: { product: Product }) {
   const { t } = useTranslation()
   const factory = findFactory(product.factoryId)
   return (
@@ -61,7 +61,12 @@ export function ProductCard({ product: p }: { product: Product }) {
 
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-border">
-      <div className="flex aspect-[16/10] flex-col items-center justify-center gap-1 bg-muted text-xs text-subtle-foreground">
+      <Link
+        to={`/products/${p.id}`}
+        tabIndex={-1}
+        aria-hidden
+        className="flex aspect-[16/10] flex-col items-center justify-center gap-1 bg-muted text-xs text-subtle-foreground"
+      >
         {p.imageUrl ? (
           <img src={p.imageUrl} alt="" className="size-full object-cover" />
         ) : (
@@ -70,11 +75,15 @@ export function ProductCard({ product: p }: { product: Product }) {
             {t('products.photo')}
           </>
         )}
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="space-y-1">
-          <h3 className="text-[15px] font-bold">{p.name}</h3>
+          <h3 className="text-[15px] font-bold">
+            <Link to={`/products/${p.id}`} className="hover:underline">
+              {p.name}
+            </Link>
+          </h3>
           <CategoryFactory product={p} />
           <div className="text-xs text-muted-foreground">
             {t('products.lastMade', { date: p.lastMadeAt })}
@@ -133,7 +142,9 @@ export function ProductTable({ products }: { products: Product[] }) {
           return (
             <div key={p.id} className={cn(COLS, 'border-b border-divider px-5 py-3.5 last:border-0')}>
               <div className="min-w-0 space-y-0.5">
-                <div className="truncate text-sm font-bold">{p.name}</div>
+                <Link to={`/products/${p.id}`} className="block truncate text-sm font-bold hover:underline">
+                  {p.name}
+                </Link>
                 <CategoryFactory product={p} />
               </div>
               <span className="text-right text-sm font-semibold tabular-nums">{specs.unitPrice}</span>

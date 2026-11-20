@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { currentUser, deposit, factories, notices, orders, todos } from '@/mocks/customer-home'
+import { BulkUploadDialog } from './bulk-upload-dialog'
 import { DepositCard } from './deposit-card'
 import { FactoryCard } from './factory-card'
 import { NoticeCard } from './notice-card'
@@ -10,6 +12,7 @@ import { TodoCard } from './todo-card'
 
 export default function CustomerHome() {
   const { t } = useTranslation()
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   return (
     <div className="space-y-4">
@@ -21,7 +24,7 @@ export default function CustomerHome() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="h-9 px-4 font-semibold">
+          <Button variant="outline" className="h-9 px-4 font-semibold" onClick={() => setBulkOpen(true)}>
             {t('home.excelUpload')}
           </Button>
           <Button nativeButton={false} render={<Link to="/orders/new" />} className="h-9 px-4 font-semibold">
@@ -38,9 +41,11 @@ export default function CustomerHome() {
       <OrderTable orders={orders} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <NoticeCard notices={notices} />
+        <NoticeCard notices={notices.slice(0, 3)} />
         <FactoryCard factories={factories} />
       </div>
+
+      <BulkUploadDialog open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   )
 }

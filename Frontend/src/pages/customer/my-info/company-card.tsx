@@ -38,7 +38,7 @@ export function CompanyCard() {
           <InfoRow label={t('myInfo.company.businessType')}>{info.businessType}</InfoRow>
           <InfoRow label={t('myInfo.company.address')}>{info.address}</InfoRow>
           <InfoRow label={t('myInfo.company.certificate')}>
-            <button type="button" className="font-semibold text-primary hover:underline">
+            <button type="button" className="font-semibold text-primary hover:underline" onClick={() => toast(t('common.comingSoon'))}>
               {info.certificate}
             </button>
           </InfoRow>

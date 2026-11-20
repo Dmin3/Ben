@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 import AuthCallback from '@/pages/auth/callback'
 import Login from '@/pages/auth/login'
+import FindAccount from '@/pages/auth/find-account'
 import Onboarding from '@/pages/auth/onboarding'
 import Signup from '@/pages/auth/signup'
 import MainSignup from '@/pages/auth/signup/main'
@@ -10,8 +11,12 @@ import Deposit from '@/pages/customer/deposit'
 import Factories from '@/pages/customer/factories'
 import CustomerHome from '@/pages/customer/home'
 import CustomerLayout from '@/pages/customer/layout'
+import Members from '@/pages/customer/members'
 import MyInfo from '@/pages/customer/my-info'
 import NewOrder from '@/pages/customer/new-order'
+import Notices from '@/pages/customer/notices'
+import OrderDetail from '@/pages/customer/orders'
+import ProductDetail from '@/pages/customer/products/detail'
 import Products from '@/pages/customer/products'
 import Tasks from '@/pages/customer/tasks'
 
@@ -24,8 +29,7 @@ export const router = createBrowserRouter([
   { path: '/signup/main', element: <MainSignup /> },
   { path: '/signup/sub', element: <SubSignup /> },
   { path: '/onboarding', element: <Onboarding /> },
-  // ponytail: 계정 찾기는 BE API(휴대폰 인증으로 이메일 찾기·비밀번호 재설정)가 생기면 만든다
-  { path: '/find-account', element: <ComingSoon /> },
+  { path: '/find-account', element: <FindAccount /> },
   {
     path: '/',
     element: <CustomerLayout />,
@@ -33,6 +37,7 @@ export const router = createBrowserRouter([
       { index: true, element: <CustomerHome /> },
       { path: 'tasks', element: <Tasks /> },
       { path: 'products', element: <Products /> },
+      { path: 'products/:id', element: <ProductDetail /> },
       { path: 'factories', element: <Factories /> },
       // 차트(recharts)가 무거워서 공장 상세는 열 때 따로 불러온다
       {
@@ -42,9 +47,12 @@ export const router = createBrowserRouter([
       },
       { path: 'deposit', element: <Deposit /> },
       { path: 'me', element: <MyInfo /> },
+      { path: 'members', element: <Members /> },
+      { path: 'notices', element: <Notices /> },
+      { path: 'orders/:id', element: <OrderDetail /> },
       // 입력 화면은 모바일 하단 탭을 숨기고 자체 버튼 바를 쓴다
       { path: 'orders/new', element: <NewOrder />, handle: { hideTabBar: true } },
-      { path: '*', element: <ComingSoon /> },
+      { path: '*', element: <ComingSoon notFound /> },
     ],
   },
 ])

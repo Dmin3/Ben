@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router'
 import { OrderProgress } from '@/components/order/order-progress'
 import { OrderStatusBadge } from '@/components/order/order-status-badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ const COLS = 'grid grid-cols-[180px_1fr_100px_84px_24px] items-center gap-4'
 
 export function OrderTable({ orders }: { orders: Order[] }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [filter, setFilter] = useState<OrderFilter | 'all'>('all')
   const rows = filter === 'all' ? orders : orders.filter((o) => o.filters.includes(filter))
 
@@ -52,7 +54,14 @@ export function OrderTable({ orders }: { orders: Order[] }) {
           </div>
 
           {rows.map((o) => (
-            <div key={o.id} className={cn(COLS, 'cursor-pointer border-b border-divider px-2 py-3 hover:bg-muted/60')}>
+            <div
+              key={o.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => navigate(`/orders/${o.id}`)}
+              onKeyDown={(e) => e.key === 'Enter' && navigate(`/orders/${o.id}`)}
+              className={cn(COLS, 'cursor-pointer border-b border-divider px-2 py-3 hover:bg-muted/60')}
+            >
               <div className="min-w-0">
                 <div className="text-[11px] text-muted-foreground">{o.id}</div>
                 <div className="truncate text-sm font-bold">{o.name}</div>

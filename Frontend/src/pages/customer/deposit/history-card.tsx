@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { downloadCsv } from '@/lib/csv'
 import { num } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Transaction } from '@/mocks/deposit'
@@ -44,16 +45,10 @@ export function HistoryCard({ transactions, asOf }: { transactions: Transaction[
   const typeOptions = (['all', 'in', 'out'] as const).map((v) => ({ value: v, label: t(`deposit.filters.${v}`) }))
 
   // 엑셀에서 바로 열리도록 BOM 붙인 CSV로 내려받는다
-  const downloadCsv = () => {
+  const exportCsv = () => {
     const head = (['no', 'date', 'description', 'amount', 'balance'] as const).map((c) => t(`deposit.cols.${c}`))
     const body = rows.map((x, i) => [i + 1, x.date, x.orderId ? `${x.description} (${x.orderId})` : x.description, x.amount, x.balance])
-    const csv = [head, ...body].map((r) => r.map((v) => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\r\n')
-    const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `deposit-history-${asOf.replaceAll('.', '')}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadCsv(`deposit-history-${asOf.replaceAll('.', '')}.csv`, [head, ...body])
   }
 
   return (
@@ -91,7 +86,7 @@ export function HistoryCard({ transactions, asOf }: { transactions: Transaction[
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" className="h-9" onClick={downloadCsv} disabled={rows.length === 0}>
+          <Button variant="outline" className="h-9" onClick={exportCsv} disabled={rows.length === 0}>
             <Download /> {t('deposit.excel')}
           </Button>
         </div>

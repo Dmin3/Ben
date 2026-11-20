@@ -1,5 +1,6 @@
 import { Download, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { OrderStatusBadge } from '@/components/order/order-status-badge'
 import { Badge } from '@/components/ui/badge'
@@ -35,14 +36,18 @@ export function HistoryTab({ factory }: { factory: Factory }) {
           <span>{t('factories.history.status')}</span>
         </div>
         {factory.history.map((o) => (
-          <div key={o.id} className={cn(HISTORY_COLS, 'border-b border-divider px-5 py-3.5 text-sm last:border-0')}>
-            <span className="text-muted-foreground tabular-nums">{o.id}</span>
+          <Link
+            key={o.id}
+            to={`/orders/${o.id}`}
+            className={cn(HISTORY_COLS, 'border-b border-divider px-5 py-3.5 text-sm last:border-0 hover:bg-muted/60')}
+          >
+            <span className="font-semibold text-primary tabular-nums">{o.id}</span>
             <span className="truncate font-semibold">{o.product}</span>
             <span className="text-right tabular-nums">{t('units.pcs', { qty: num(o.quantity) })}</span>
             <span className="text-right font-semibold tabular-nums">{yuan(o.amount)}</span>
             <span className="tabular-nums">{o.date}</span>
             <OrderStatusBadge status={o.status} />
-          </div>
+          </Link>
         ))}
       </div>
     </div>
@@ -74,7 +79,14 @@ export function IssuesTab({ factory }: { factory: Factory }) {
           </Badge>
           <span className="min-w-0 flex-1 text-sm font-semibold">{i.title}</span>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {i.orderId && `${i.orderId} · `}
+            {i.orderId && (
+              <>
+                <Link to={`/orders/${i.orderId}`} className="font-semibold text-primary hover:underline">
+                  {i.orderId}
+                </Link>
+                {' · '}
+              </>
+            )}
             {i.date}
           </span>
           <Badge variant={i.resolved ? 'success' : 'info'}>{t(`factories.issueStatus.${i.resolved ? 'resolved' : 'open'}`)}</Badge>

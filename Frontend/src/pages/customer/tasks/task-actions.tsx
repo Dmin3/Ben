@@ -1,11 +1,24 @@
 import { ArrowDown, ChevronRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import type { Task } from '@/mocks/tasks'
 
 type Action = {
   key: 'viewRequest' | 'editRequest' | 'quote' | 'schedule' | 'sampleImages' | 'qcImages' | 'customsInvoice' | 'closingDocs'
   ready: boolean
   download?: boolean
+}
+
+/** 버튼마다 오더 상세의 어느 탭으로 갈지 */
+const TAB_OF: Record<Action['key'], string> = {
+  viewRequest: 'tab=request',
+  editRequest: 'tab=request&edit=1',
+  quote: 'tab=docs',
+  schedule: 'tab=docs',
+  sampleImages: 'tab=images',
+  qcImages: 'tab=images',
+  customsInvoice: 'tab=docs',
+  closingDocs: 'tab=docs',
 }
 
 // ponytail: 버튼 활성 조건을 진행 단계로 추정함 (샘플 이후 샘플 이미지, 검품부터 QC 이미지, 통관부터 인보이스, 배송부터 마감서류).
@@ -39,13 +52,13 @@ export function TaskActions({ task }: { task: Task }) {
         return (
           <li key={a.key}>
             {a.ready ? (
-              <button
-                type="button"
+              <Link
+                to={`/orders/${task.id}?${TAB_OF[a.key]}`}
                 className="flex h-11 w-full items-center justify-between rounded-lg border border-primary/50 bg-card px-3.5 text-[13px] font-semibold text-primary transition-colors hover:bg-accent"
               >
                 {label}
                 {a.download ? <ArrowDown className="size-4" /> : <ChevronRight className="size-4" />}
-              </button>
+              </Link>
             ) : (
               <div
                 aria-disabled
