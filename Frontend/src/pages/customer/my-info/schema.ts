@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { newPassword } from '@/lib/validators'
 
 // 에러 메시지는 번역 키. Field 컴포넌트가 화면 언어로 바꿔 보여준다
 const required = z.string().trim().min(1, 'validation.required')
@@ -40,11 +41,7 @@ export type AddressForm = z.infer<typeof addressSchema>
 export const passwordSchema = z
   .object({
     current: z.string().min(1, 'validation.currentPassword'),
-    next: z
-      .string()
-      .min(8, 'validation.passwordMin')
-      .regex(/[A-Za-z]/, 'validation.passwordLetter')
-      .regex(/\d/, 'validation.passwordDigit'),
+    next: newPassword,
     confirm: z.string(),
   })
   .refine((v) => v.next === v.confirm, { path: ['confirm'], message: 'validation.passwordMismatch' })

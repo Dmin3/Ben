@@ -37,7 +37,7 @@ function providerConfig(provider: OAuthProvider): ProviderConfig {
       profileUrl: "https://kapi.kakao.com/v2/user/me",
       clientId: env.KAKAO_CLIENT_ID,
       clientSecret: env.KAKAO_CLIENT_SECRET,
-      scope: "account_email profile_nickname profile_image phone_number",
+      scope: "account_email profile_nickname profile_image",
     },
     naver: {
       authorizeUrl: "https://nid.naver.com/oauth2.0/authorize",

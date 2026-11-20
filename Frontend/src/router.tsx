@@ -1,6 +1,10 @@
 import { createBrowserRouter } from 'react-router'
 import AuthCallback from '@/pages/auth/callback'
 import Login from '@/pages/auth/login'
+import Onboarding from '@/pages/auth/onboarding'
+import Signup from '@/pages/auth/signup'
+import MainSignup from '@/pages/auth/signup/main'
+import SubSignup from '@/pages/auth/signup/sub'
 import ComingSoon from '@/pages/coming-soon'
 import Deposit from '@/pages/customer/deposit'
 import Factories from '@/pages/customer/factories'
@@ -15,8 +19,12 @@ export const router = createBrowserRouter([
   // 로그인은 사이드바 없는 단독 화면
   { path: '/login', element: <Login /> },
   { path: '/auth/callback', element: <AuthCallback /> },
-  // ponytail: 가입(사업자번호 조회 → 고객사 메인 계정 승인)과 계정 찾기는 BE API가 생기면 만든다
-  { path: '/signup', element: <ComingSoon /> },
+  // 가입: 회사 대표(메인)는 누구나, 직원(서브)은 회사 코드로 합류 요청 → 메인이 승인
+  { path: '/signup', element: <Signup /> },
+  { path: '/signup/main', element: <MainSignup /> },
+  { path: '/signup/sub', element: <SubSignup /> },
+  { path: '/onboarding', element: <Onboarding /> },
+  // ponytail: 계정 찾기는 BE API(휴대폰 인증으로 이메일 찾기·비밀번호 재설정)가 생기면 만든다
   { path: '/find-account', element: <ComingSoon /> },
   {
     path: '/',

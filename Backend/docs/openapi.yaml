@@ -132,8 +132,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [accountCode, accountName, businessRegistrationNumber]
+              required: [name, accountCode, accountName, businessRegistrationNumber]
               properties:
+                name: { type: string, minLength: 2, maxLength: 80, description: 실명. SSO 공급자 이름 대신 저장 }
                 accountCode: { type: string, minLength: 3, maxLength: 30 }
                 accountName: { type: string, minLength: 2, maxLength: 100 }
                 businessRegistrationNumber: { type: string }
@@ -552,8 +553,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [mainAccountCode]
+              required: [name, mainAccountCode]
               properties:
+                name: { type: string, minLength: 2, maxLength: 80, description: 실명. SSO 공급자 이름 대신 저장 }
                 mainAccountCode: { type: string, example: ben }
                 phone: { type: string }
                 phoneVerificationToken: { type: string, description: SSO_SIGNUP 인증 토큰 }
