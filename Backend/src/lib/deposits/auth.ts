@@ -12,7 +12,7 @@ export async function depositAuth(request: NextRequest, admin = false) {
     .innerJoin(accounts, eq(accounts.id, accountMembers.accountId))
     .where(and(eq(users.id, auth.userId), eq(users.status, "ACTIVE"), eq(accountMembers.id, auth.memberId),
       eq(accountMembers.accountId, auth.accountId), eq(accountMembers.status, "ACTIVE"), eq(accounts.active, true))).limit(1);
-  if (!user || (admin && (auth.memberType === "SUB" || user.systemRole !== "BEN_ADMIN")))
+  if (!user || (admin && (auth.memberType === "SUB" || !["BEN_ADMIN", "SUPER_ADMIN"].includes(user.systemRole))))
     throw new AppError(403, "DEPOSIT_FORBIDDEN", "예치금 처리 권한이 없습니다.");
   return auth;
 }

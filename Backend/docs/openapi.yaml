@@ -29,6 +29,76 @@ tags:
     description: 고객사별 거래 공장 조회와 메모 관리
 
 paths:
+  /api/account/invitation-code:
+    get:
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      summary: 고객사 MAIN의 초대코드 조회 (없으면 최초 생성)
+      description: 고객사 MAIN OWNER만 가능. SUPER_ADMIN/ADMIN/SUB는 403. Bearer JWT 또는 로그인 쿠키 사용. 응답은 no-store.
+      responses:
+        '200':
+          description: 현재 초대코드
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitationCode: { type: string, pattern: '^[A-Z0-9]{12}$', example: 7K3M9Q2X8B4N }
+        '401': { description: 로그인 필요 }
+        '403': { description: 고객사 메인계정만 가능 }
+    post:
+      summary: 고객사 MAIN의 초대코드 재발급
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      description: 요청 본문 없음. 기존 코드는 즉시 무효화되며 기존 소속과 대기 중 신청은 유지된다. 조회와 동일한 권한 및 응답 형식.
+      responses:
+        '200':
+          description: 새 초대코드
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitationCode: { type: string, pattern: '^[A-Z0-9]{12}$' }
+        '401': { description: 로그인 필요 }
+        '403': { description: 고객사 메인계정만 가능 }
+  /api/admin/users/{userId}/role:
+    patch:
+      security:
+        - bearerAuth: []
+        - accessCookie: []
+      summary: 최고관리자의 운영자 권한 변경
+      description: SUPER_ADMIN만 호출 가능. 마지막 활성 최고관리자 해제 불가. USER로 변경하면 해당 멤버십에 따라 MAIN/SUB로 표시된다.
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [systemRole]
+              properties:
+                systemRole: { type: string, enum: [USER, BEN_ADMIN, SUPER_ADMIN] }
+      responses:
+        '200':
+          description: 변경된 사용자
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  systemRole: { type: string, enum: [USER, BEN_ADMIN, SUPER_ADMIN] }
+        '401': { description: 로그인 필요 }
+        '403': { description: 최고관리자만 가능 }
+        '404': { description: 사용자 없음 }
+        '409': { description: 마지막 최고관리자 해제 불가 }
   /api/deposit:
     $ref: './deposit-openapi.json#/paths/~1api~1deposit'
   /api/deposit/transactions:
@@ -101,16 +171,16 @@ paths:
     post:
       tags: [Sub Auth]
       summary: 서브계정 가입 및 메인계정 승인 요청
-      description: 사업자번호가 아니라 mainAccountCode로 대상 메인계정을 지정한다.
+      description: 사업자번호가 아니라 invitationCode로 대상 메인계정을 지정한다.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [mainAccountCode, email, password, name, phone, phoneVerificationToken]
+              required: [invitationCode, email, password, name, phone, phoneVerificationToken]
               properties:
-                mainAccountCode: { type: string, minLength: 3, maxLength: 30 }
+                invitationCode: { type: string, pattern: '^[A-Z0-9]{12}$' }
                 email: { type: string, format: email }
                 password: { type: string, minLength: 10, maxLength: 128 }
                 name: { type: string, minLength: 2, maxLength: 80 }
@@ -544,7 +614,7 @@ paths:
     post:
       tags: [Onboarding]
       summary: 메인계정 코드로 고객사 소속 승인 요청
-      description: mainAccountCode 미존재 시 404. SSO에서 번호를 받지 못했다면 SMS 인증 필요.
+      description: invitationCode 미존재 시 404. SSO에서 번호를 받지 못했다면 SMS 인증 필요.
       security:
         - onboardingCookie: []
       requestBody:
@@ -553,10 +623,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, mainAccountCode]
+              required: [name, invitationCode]
               properties:
                 name: { type: string, minLength: 2, maxLength: 80, description: 실명. SSO 공급자 이름 대신 저장 }
-                mainAccountCode: { type: string, example: ben }
+                invitationCode: { type: string, pattern: '^[A-Z0-9]{12}$', example: 7K3M9Q2X8B4N }
                 phone: { type: string }
                 phoneVerificationToken: { type: string, description: SSO_SIGNUP 인증 토큰 }
       responses:
@@ -1148,8 +1218,15 @@ components:
 
     CurrentUserResponse:
       type: object
-      required: [userId, name, accountId, accountCode, accountName, memberId, memberType, role, permissions]
+      required: [userId, name, accountId, accountCode, accountName, memberId, memberType, role, permissions, accountRole, systemRole]
       properties:
+        accountRole:
+          type: string
+          enum: [SUPER_ADMIN, ADMIN, MAIN, SUB]
+          description: 화면 및 권한 분기의 기준. 기존 role은 멤버십 호환 필드다.
+        systemRole:
+          type: string
+          enum: [USER, BEN_ADMIN, SUPER_ADMIN]
         userId: { type: string, format: uuid }
         email:
           type: [string, "null"]

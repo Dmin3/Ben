@@ -4,6 +4,7 @@ import { ACCESS_COOKIE } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { sessionExists } from "@/lib/auth/session-store";
 import { AppError } from "@/lib/http";
+import { currentRole } from "./roles";
 
 export async function requireAuth(request: NextRequest) {
   const authorization = request.headers.get("authorization");
@@ -19,7 +20,8 @@ export async function requireAuth(request: NextRequest) {
     if (!(await sessionExists(context.sessionId))) {
       throw new AppError(401, "SESSION_EXPIRED", "세션이 만료되었습니다.");
     }
-    return context;
+    const live = await currentRole(context);
+    return { ...context, role: live.memberType === "SUB" ? "MEMBER" as const : live.role, memberType: live.memberType, accountRole: live.accountRole };
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError(401, "INVALID_ACCESS_TOKEN", "Access Token이 유효하지 않습니다.");

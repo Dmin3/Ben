@@ -5,6 +5,7 @@ import { accountMembers, accounts, users } from "@/db/schema";
 import { getDb } from "@/db/client";
 import { requireAuth } from "@/lib/auth/request-auth";
 import { AppError, jsonError } from "@/lib/http";
+import { currentRole } from "@/lib/auth/roles";
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest) {
       .where(and(eq(accountMembers.id, auth.memberId), eq(accountMembers.accountId, auth.accountId)))
       .limit(1);
     if (!profile) throw new AppError(404, "MEMBER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다.");
-    return NextResponse.json(profile);
+    const role = await currentRole(auth);
+    return NextResponse.json({ ...profile, systemRole: role.systemRole, accountRole: role.accountRole });
   } catch (error) {
     return jsonError(error);
   }
