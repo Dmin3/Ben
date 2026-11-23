@@ -679,7 +679,7 @@ export async function getOnboardingStatus(userId: string) {
   return { ...user, membershipRequest: request ?? null };
 }
 
-export async function requestMembership(userId: string, name: string, accountCode: string, rawPhone?: string, verificationToken?: string) {
+export async function requestMembership(userId: string, name: string, invitationCode: string, rawPhone?: string, verificationToken?: string) {
   const db = getDb();
   const [currentUser] = await db.select({ phone: users.phone }).from(users).where(eq(users.id, userId)).limit(1);
   if (!currentUser) throw new AppError(404, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다.");
@@ -690,13 +690,15 @@ export async function requestMembership(userId: string, name: string, accountCod
   const [account] = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.code, normalizeAccountCode(accountCode)), eq(accounts.active, true)))
+    .where(and(eq(accounts.invitationCode, invitationCode), eq(accounts.active, true)))
     .limit(1);
   if (!account) throw new AppError(404, "MAIN_ACCOUNT_NOT_FOUND", "신청할 메인계정을 찾을 수 없습니다.");
   const [occupied] = await db.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
   if (occupied && occupied.id !== userId) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
 
   await db.transaction(async (tx) => {
+    const [validCode] = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.id, account.id), eq(accounts.invitationCode, invitationCode), eq(accounts.active, true))).for("update");
+    if (!validCode) throw new AppError(400, "INVALID_INVITATION_CODE", "초대코드가 만료되었거나 유효하지 않습니다.");
     await tx.update(users).set({ name: name.trim(), phone, phoneVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(users.id, userId));
     await tx
       .update(membershipRequests)
@@ -721,7 +723,7 @@ export async function requestMembership(userId: string, name: string, accountCod
 }
 
 export async function registerSubAccountRequest(input: {
-  mainAccountCode: string;
+  invitationCode: string;
   email: string;
   password: string;
   name: string;
@@ -732,7 +734,7 @@ export async function registerSubAccountRequest(input: {
   const phone = await consumePhoneVerification(input.phoneVerificationToken, input.phone, "SUB_SIGNUP");
   const email = input.email.trim().toLowerCase();
   const [account] = await db.select({ id: accounts.id }).from(accounts)
-    .where(and(eq(accounts.code, normalizeAccountCode(input.mainAccountCode)), eq(accounts.active, true))).limit(1);
+    .where(and(eq(accounts.invitationCode, input.invitationCode), eq(accounts.active, true))).limit(1);
   if (!account) throw new AppError(404, "MAIN_ACCOUNT_NOT_FOUND", "신청할 메인계정을 찾을 수 없습니다.");
   const [sameEmail, samePhone] = await Promise.all([
     db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1),
@@ -742,6 +744,8 @@ export async function registerSubAccountRequest(input: {
   if (samePhone.length) throw new AppError(409, "PHONE_EXISTS", "이미 가입된 휴대폰번호입니다.");
   const passwordHash = await hashPassword(input.password);
   return db.transaction(async (tx) => {
+    const [validCode] = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.id, account.id), eq(accounts.invitationCode, input.invitationCode), eq(accounts.active, true))).for("update");
+    if (!validCode) throw new AppError(400, "INVALID_INVITATION_CODE", "초대코드가 만료되었거나 유효하지 않습니다.");
     const [user] = await tx.insert(users).values({
       email, name: input.name.trim(), phone, phoneVerifiedAt: new Date(),
     }).returning();

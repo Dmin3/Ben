@@ -7,7 +7,7 @@ import { jsonError } from "@/lib/http";
 import { readRequestBody } from "@/lib/request-body";
 
 const updateSchema = z.object({
-  role: z.enum(["ADMIN", "MEMBER"]).optional(),
+  role: z.literal("MEMBER").optional(),
   permissions: z.array(z.string().min(1).max(80)).max(100).optional(),
   status: z.enum(["ACTIVE", "DISABLED"]).optional(),
 });

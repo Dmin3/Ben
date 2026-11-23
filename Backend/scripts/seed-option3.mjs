@@ -61,7 +61,9 @@ try {
         insert into users (email, email_verified, name, status, system_role)
         values (${seed.email}, true, ${seed.name}, 'ACTIVE', ${seed.systemRole})
         on conflict (email) where email is not null
-        do update set name = excluded.name, system_role = excluded.system_role, updated_at = now()
+        do update set name = excluded.name,
+          system_role = case when users.system_role = 'SUPER_ADMIN' then users.system_role else excluded.system_role end,
+          updated_at = now()
         returning id
       `
       const [account] = await tx`

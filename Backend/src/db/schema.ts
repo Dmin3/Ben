@@ -74,7 +74,7 @@ export const userStatusEnum = pgEnum("user_status", [
   "SUSPENDED",
   "WITHDRAWN",
 ]);
-export const systemRoleEnum = pgEnum("system_role", ["USER", "BEN_ADMIN"]);
+export const systemRoleEnum = pgEnum("system_role", ["USER", "BEN_ADMIN", "SUPER_ADMIN"]);
 export const memberTypeEnum = pgEnum("member_type", ["MAIN", "SUB"]);
 export const memberRoleEnum = pgEnum("member_role", [
   "OWNER",
@@ -139,6 +139,7 @@ export const accounts = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     code: text("code").notNull().unique(),
+    invitationCode: text("invitation_code").unique(),
     name: text("name").notNull(),
     customerNo: text("customer_no").unique(),
     nameEn: text("name_en"),

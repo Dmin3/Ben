@@ -1,5 +1,7 @@
 # 사용자·계정 인증 설계
 
+> 2026-11-23: accounts.invitation_code(UNIQUE, 12자리 대문자/숫자) 추가. 소속 신청 입력은 invitationCode로 변경됐다. users.system_role에 SUPER_ADMIN 추가. 공개 accountRole은 SUPER_ADMIN/ADMIN/MAIN/SUB이며 기존 멤버십 ADMIN은 신규 사용하지 않는다. 신규 테이블 추가 없이 기존 테이블을 확장했다.
+
 > 아래 ERD는 초기 인증 설계 이력이다. 현재 전체 스키마의 기준은 `src/db/schema.ts`와 `drizzle/`이며 API는 `docs/openapi.yaml`을 따른다.
 > 2026-11-18 변경: users.phone(값이 있는 경우 전역 UNIQUE), phone_verified_at 추가. membership_requests.business_number_hash는 nullable이고 requested_login_id/pending_password_hash가 추가됐다. 신규 소속 요청은 사업자번호 대신 mainAccountCode를 사용한다.
 > 공장 6개 테이블(factories, factory_tags, account_factories, factory_metrics, factory_issues, factory_files)과 예치금 5개 테이블(deposit_transactions, deposit_schedules, deposit_alerts, deposit_invoices, remittance_accounts)이 추가됐다. 이 문서는 전체 22개 테이블 ERD가 아니다.
@@ -31,6 +33,7 @@ erDiagram
     ACCOUNT {
       uuid id PK
       string code UK
+      string invitation_code UK
       string name
       uuid owner_user_id FK
       boolean active

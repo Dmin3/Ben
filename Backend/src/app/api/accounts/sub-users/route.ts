@@ -11,7 +11,7 @@ const createSchema = z.object({
   password: z.string().min(10).max(128).optional(),
   name: z.string().trim().min(2).max(80),
   email: z.email(),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  role: z.literal("MEMBER").default("MEMBER"),
   permissions: z.array(z.string().min(1).max(80)).max(100).default([]),
   authMethod: z.enum(["LOCAL_ONLY", "SSO_ONLY", "BOTH"]).default("SSO_ONLY"),
   provider: z.enum(["GOOGLE", "KAKAO", "NAVER"]).optional(),

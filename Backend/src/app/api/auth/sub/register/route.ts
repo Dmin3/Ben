@@ -5,7 +5,7 @@ import { jsonError } from "@/lib/http";
 import { readRequestBody } from "@/lib/request-body";
 
 const schema = z.object({
-  mainAccountCode: z.string().trim().min(3).max(30),
+  invitationCode: z.string().trim().regex(/^[A-Z0-9]{12}$/),
   email: z.email(),
   password: z.string().min(10).max(128),
   name: z.string().trim().min(2).max(80),
