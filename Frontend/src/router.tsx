@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router'
+import { Navigate, createBrowserRouter } from 'react-router'
 import AuthCallback from '@/pages/auth/callback'
 import Login from '@/pages/auth/login'
 import FindAccount from '@/pages/auth/find-account'
@@ -6,6 +6,23 @@ import Onboarding from '@/pages/auth/onboarding'
 import Signup from '@/pages/auth/signup'
 import MainSignup from '@/pages/auth/signup/main'
 import SubSignup from '@/pages/auth/signup/sub'
+import AdminCustomers from '@/pages/admin/customers'
+import AdminCustomerDetail from '@/pages/admin/customers/detail'
+import AdminDeposit from '@/pages/admin/deposit'
+import DepositApprovals from '@/pages/admin/deposit/approvals'
+import AdminFactories from '@/pages/admin/factories'
+import AdminFactoryDetail from '@/pages/admin/factories/detail'
+import NewFactory from '@/pages/admin/factories/new'
+import CapitalSettlement from '@/pages/admin/finance/capital'
+import CapitalHistory from '@/pages/admin/finance/capital-history'
+import MonthlySales from '@/pages/admin/finance/sales'
+import SalesInput from '@/pages/admin/finance/sales-input'
+import AdminHome from '@/pages/admin/home'
+import AdminLayout from '@/pages/admin/layout'
+import AdminOrders from '@/pages/admin/orders'
+import AdminOrderDetail from '@/pages/admin/orders/detail'
+import IncomingOrders from '@/pages/admin/orders/incoming'
+import AdminSettings from '@/pages/admin/settings'
 import ComingSoon from '@/pages/coming-soon'
 import Deposit from '@/pages/customer/deposit'
 import Factories from '@/pages/customer/factories'
@@ -53,6 +70,35 @@ export const router = createBrowserRouter([
       // 입력 화면은 모바일 하단 탭을 숨기고 자체 버튼 바를 쓴다
       { path: 'orders/new', element: <NewOrder />, handle: { hideTabBar: true } },
       { path: '*', element: <ComingSoon notFound /> },
+    ],
+  },
+  // 관리자 어드민 (기획 시안 12~29번 슬라이드)
+  {
+    path: '/admin',
+    element: <AdminLayout />,
+    children: [
+      { index: true, element: <AdminHome /> },
+      { path: 'orders', element: <AdminOrders /> },
+      { path: 'orders/incoming', element: <IncomingOrders /> },
+      { path: 'orders/:id', element: <AdminOrderDetail /> },
+      { path: 'deposit', element: <AdminDeposit /> },
+      { path: 'deposit/approvals', element: <DepositApprovals /> },
+      { path: 'factories', element: <AdminFactories /> },
+      { path: 'factories/new', element: <NewFactory /> },
+      { path: 'factories/:id', element: <AdminFactoryDetail /> },
+      { path: 'customers', element: <AdminCustomers /> },
+      { path: 'customers/:id', element: <AdminCustomerDetail /> },
+      { path: 'finance/capital', element: <CapitalSettlement /> },
+      { path: 'finance/capital/history', element: <CapitalHistory /> },
+      { path: 'finance/sales', element: <MonthlySales /> },
+      { path: 'finance/sales/input', element: <SalesInput /> },
+      // ponytail: 출고정산은 지금 쓰는 엑셀을 받아 옮길 예정이라 준비 중
+      { path: 'finance/shipping', element: <ComingSoon backTo="/admin" /> },
+      { path: 'settings', element: <Navigate to="/admin/settings/notices" replace /> },
+      { path: 'settings/notices', element: <AdminSettings section="notices" /> },
+      { path: 'settings/roles', element: <AdminSettings section="roles" /> },
+      { path: 'settings/activity', element: <AdminSettings section="activity" /> },
+      { path: '*', element: <ComingSoon notFound backTo="/admin" /> },
     ],
   },
 ])

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -96,7 +97,7 @@ function RequestsCard() {
 
 const ROLE_BADGE = { OWNER: 'default', ADMIN: 'info', MEMBER: 'neutral' } as const
 
-function loginMethod(m: Member, t: ReturnType<typeof useTranslation>['t']) {
+function loginMethod(m: Member, t: TFunction) {
   if (m.authMethod === 'LOCAL_ONLY' || !m.ssoProvider) return t('members.loginLocal')
   return t(`members.provider.${m.ssoProvider}`)
 }
