@@ -8,6 +8,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { memberLimit, type Member, type MembershipRequest } from '@/mocks/members'
 import { useDecideRequest, useMembers, useMembershipRequests } from './data'
+import { InviteCodeCard } from './invite-code-card'
 
 const day = (iso: string) => iso.slice(0, 10).replaceAll('-', '.')
 
@@ -157,6 +158,7 @@ export default function Members() {
         <h1 className="text-[22px] font-bold">{t('members.title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('members.desc')}</p>
       </div>
+      <InviteCodeCard />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
         <RequestsCard />
         <MembersCard />

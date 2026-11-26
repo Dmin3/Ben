@@ -18,14 +18,14 @@ export default function SubSignup() {
   const [done, setDone] = useState(false)
   const form = useForm<SubSignupValues>({
     resolver: zodResolver(subSignupSchema),
-    defaultValues: { mainAccountCode: '', name: '', email: '', password: '', confirm: '' },
+    defaultValues: { invitationCode: '', name: '', email: '', password: '', confirm: '' },
   })
 
   const onSubmit = async (v: SubSignupValues) => {
     setError(null)
     if (!phone) return setPhoneError('validation.phoneVerify')
     const res = await postJson('/api/auth/sub/register', {
-      mainAccountCode: v.mainAccountCode,
+      invitationCode: v.invitationCode,
       name: v.name,
       email: v.email,
       password: v.password,
@@ -56,11 +56,11 @@ export default function SubSignup() {
           <section className="space-y-4">
             <SectionTitle>{t('signup.joinSection')}</SectionTitle>
             <FormInput
-              name="mainAccountCode"
+              name="invitationCode"
               label={t('signup.accountCode')}
-              autoCapitalize="none"
+              autoCapitalize="characters"
               spellCheck={false}
-              placeholder="ben"
+              placeholder="ABCD1234EFGH"
               hint={t('signup.joinCodeHint')}
             />
           </section>

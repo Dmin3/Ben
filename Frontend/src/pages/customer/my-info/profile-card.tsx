@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@/components/ui/card'
-import { profile } from '@/mocks/my-info'
+import type { MyInfo } from './data'
 
-export function ProfileCard() {
+export function ProfileCard({ profile }: { profile: MyInfo['profile'] }) {
   const { t } = useTranslation()
   return (
     <Card>
@@ -13,7 +13,11 @@ export function ProfileCard() {
         <div className="min-w-0">
           <div className="text-lg font-bold">{t('common.customerName', { name: profile.name })}</div>
           <div className="text-[13px] text-muted-foreground">
-            {t('myInfo.profileMeta', { company: profile.company, no: profile.customerNo, date: profile.joinedAt })}
+            {t('myInfo.profileMeta', {
+              company: profile.companyName,
+              no: profile.customerNo,
+              date: profile.joinedAt.slice(0, 10).replaceAll('-', '.'),
+            })}
           </div>
         </div>
       </CardContent>

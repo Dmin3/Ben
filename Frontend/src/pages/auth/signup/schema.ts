@@ -2,10 +2,11 @@ import { z } from 'zod'
 import { newPassword } from '@/lib/validators'
 
 // 형식은 BE 검증과 같게 맞춘다 (openapi.yaml)
-const accountCode = z
+// 초대 코드: 영문 대문자·숫자 12자리. 소문자·공백으로 입력해도 맞춰 보낸다
+const invitationCode = z
   .string()
-  .trim()
-  .regex(/^[a-zA-Z0-9-]{3,30}$/, 'validation.accountCode')
+  .transform((v) => v.replace(/\s/g, '').toUpperCase())
+  .pipe(z.string().regex(/^[A-Z0-9]{12}$/, 'validation.invitationCode'))
 
 export const companyFields = {
   accountName: z.string().trim().min(2, 'validation.companyName').max(100, 'validation.companyName'),
@@ -35,11 +36,11 @@ const mismatch = { path: ['confirm'], message: 'validation.passwordConfirm' }
 export const mainSignupSchema = z.object({ ...personFields, ...companyFields }).refine(samePassword, mismatch)
 export type MainSignupValues = z.infer<typeof mainSignupSchema>
 
-export const subSignupSchema = z.object({ ...personFields, mainAccountCode: accountCode }).refine(samePassword, mismatch)
+export const subSignupSchema = z.object({ ...personFields, invitationCode }).refine(samePassword, mismatch)
 export type SubSignupValues = z.infer<typeof subSignupSchema>
 
 export const createCompanySchema = z.object({ name, ...companyFields })
 export type CreateCompanyValues = z.infer<typeof createCompanySchema>
 
-export const joinCompanySchema = z.object({ name, mainAccountCode: accountCode })
+export const joinCompanySchema = z.object({ name, invitationCode })
 export type JoinCompanyValues = z.infer<typeof joinCompanySchema>

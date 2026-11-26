@@ -7,53 +7,52 @@ import { Field } from '@/components/form/field'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { contactPerson } from '@/mocks/my-info'
+import { patchJson } from '@/lib/api'
+import { useSaveMyInfo, type MyInfo } from './data'
 import { DialogForm, EditButton, InfoRow } from './info-parts'
 import { contactSchema, type ContactForm } from './schema'
 
-export function ContactCard() {
+export function ContactCard({ contact, canEdit }: { contact: MyInfo['contact']; canEdit: boolean }) {
   const { t } = useTranslation()
-  // TODO(API): 담당자 정보 조회/수정 API로 교체
-  const [contact, setContact] = useState<ContactForm>(contactPerson)
+  const save = useSaveMyInfo()
   const [open, setOpen] = useState(false)
+
+  const onSave = async (v: ContactForm) => {
+    if (!(await save(patchJson('/api/my-info/contact', v)))) return
+    setOpen(false)
+    toast.success(t('myInfo.contact.saved'))
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('myInfo.contact.title')}</CardTitle>
-        <CardAction>
-          <EditButton onClick={() => setOpen(true)} />
-        </CardAction>
+        {canEdit && (
+          <CardAction>
+            <EditButton onClick={() => setOpen(true)} />
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <dl>
-          <InfoRow label={t('myInfo.contact.nameAndTitle')}>
-            {contact.name} · {contact.title}
-          </InfoRow>
+          <InfoRow label={t('myInfo.contact.nameAndTitle')}>{contact ? `${contact.name} · ${contact.title}` : '-'}</InfoRow>
           <InfoRow label={t('myInfo.contact.phone')}>
-            <span className="tabular-nums">{contact.phone}</span>
+            <span className="tabular-nums">{contact?.phone ?? '-'}</span>
           </InfoRow>
-          <InfoRow label={t('myInfo.contact.email')}>{contact.email}</InfoRow>
+          <InfoRow label={t('myInfo.contact.email')}>{contact?.email ?? '-'}</InfoRow>
         </dl>
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <ContactEditForm
-            value={contact}
-            onSave={(v) => {
-              setContact(v)
-              setOpen(false)
-              toast.success(t('myInfo.contact.saved'))
-            }}
-          />
+          <ContactEditForm value={contact ?? { name: '', title: '', phone: '', email: '' }} onSave={onSave} />
         </DialogContent>
       </Dialog>
     </Card>
   )
 }
 
-function ContactEditForm({ value, onSave }: { value: ContactForm; onSave: (v: ContactForm) => void }) {
+function ContactEditForm({ value, onSave }: { value: ContactForm; onSave: (v: ContactForm) => Promise<void> }) {
   const { t } = useTranslation()
   const {
     register,

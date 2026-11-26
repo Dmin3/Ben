@@ -7,14 +7,25 @@ import { Field } from '@/components/form/field'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { account } from '@/mocks/my-info'
+import { useNavigate } from 'react-router'
+import { patchJson } from '@/lib/api'
+import { useSaveMyInfo, type MyInfo } from './data'
 import { DialogForm, EditButton, InfoRow } from './info-parts'
 import { passwordSchema, type PasswordForm } from './schema'
 
-// ponytail: 소셜 로그인만 쓰는 계정은 비밀번호가 없다. BE 응답에 따라 이 영역을 "연결된 계정" 표시로 바꿔야 함
-export function AccountCard() {
+export function AccountCard({ account }: { account: MyInfo['account'] }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const save = useSaveMyInfo()
   const [open, setOpen] = useState(false)
+
+  const onSave = async (v: PasswordForm) => {
+    if (!(await save(patchJson('/api/my-info/password', { currentPassword: v.current, newPassword: v.next })))) return
+    // BE가 세션을 끊으므로 새 비밀번호로 다시 로그인
+    setOpen(false)
+    toast.success(t('myInfo.account.relogin'))
+    navigate('/login', { replace: true })
+  }
 
   return (
     <Card>
@@ -23,32 +34,33 @@ export function AccountCard() {
       </CardHeader>
       <CardContent>
         <dl>
-          <InfoRow label={t('myInfo.account.loginId')}>{account.loginId}</InfoRow>
-          <div className="flex items-center gap-4 py-3 text-sm">
-            <dt className="w-28 shrink-0 text-muted-foreground">{t('myInfo.account.password')}</dt>
-            <dd className="ml-auto">
-              <EditButton onClick={() => setOpen(true)}>{t('myInfo.account.changePassword')}</EditButton>
-            </dd>
-          </div>
+          {account.loginId && <InfoRow label={t('myInfo.account.loginId')}>{account.loginId}</InfoRow>}
+          {account.linkedProviders.length > 0 && (
+            <InfoRow label={t('myInfo.account.social')}>
+              {account.linkedProviders.map((p) => p.provider[0] + p.provider.slice(1).toLowerCase()).join(', ')}
+            </InfoRow>
+          )}
+          {account.canChangePassword && (
+            <div className="flex items-center gap-4 py-3 text-sm">
+              <dt className="w-28 shrink-0 text-muted-foreground">{t('myInfo.account.password')}</dt>
+              <dd className="ml-auto">
+                <EditButton onClick={() => setOpen(true)}>{t('myInfo.account.changePassword')}</EditButton>
+              </dd>
+            </div>
+          )}
         </dl>
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <PasswordChangeForm
-            onSave={() => {
-              // TODO(API): 비밀번호 변경 API 호출. 현재 비밀번호 불일치 에러 처리 필요
-              setOpen(false)
-              toast.success(t('myInfo.account.changed'))
-            }}
-          />
+          <PasswordChangeForm onSave={onSave} />
         </DialogContent>
       </Dialog>
     </Card>
   )
 }
 
-function PasswordChangeForm({ onSave }: { onSave: (v: PasswordForm) => void }) {
+function PasswordChangeForm({ onSave }: { onSave: (v: PasswordForm) => Promise<void> }) {
   const { t } = useTranslation()
   const {
     register,

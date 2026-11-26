@@ -49,7 +49,8 @@ function EntryCard({ entry, item, update, remove }: {
   remove: () => void
 }) {
   const { t } = useTranslation()
-  const qty = entry.lines.filter((l) => l.checked).reduce((s, l) => s + l.qty, 0)
+  // 품목 머리줄은 이 품목에 담은 전체 수량 (주문할 줄 선택은 오른쪽 요약에 반영)
+  const qty = entry.lines.reduce((s, l) => s + l.qty, 0)
   const hexOf = (name: string) => item.colors.find((c) => c.name === name)?.hex ?? '#ccc'
   const setLine = (id: string, patch: Partial<CartLine>) => update({ ...entry, lines: entry.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)) })
   const removeLine = (id: string) => {
@@ -115,7 +116,8 @@ function EntryCard({ entry, item, update, remove }: {
         </div>
         <label className="flex items-center gap-3 border-t border-divider px-4 py-3 text-[13px]">
           <span className="shrink-0 text-muted-foreground">{t('sourcing.cartPage.note')}</span>
-          <Input value={entry.note} onChange={(e) => update({ ...entry, note: e.target.value })} placeholder={t('sourcing.cartPage.notePlaceholder')} className="h-10" />
+          {/* 한글 조합이 끊기지 않게 입력 중에는 캐시를 건드리지 않고, 칸을 벗어날 때 저장 */}
+          <Input defaultValue={entry.note} onBlur={(e) => update({ ...entry, note: e.target.value })} placeholder={t('sourcing.cartPage.notePlaceholder')} className="h-10" />
         </label>
       </div>
     </article>

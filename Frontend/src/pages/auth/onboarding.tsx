@@ -97,7 +97,7 @@ function JoinCompany({ phone }: { phone: PhoneStep }) {
   const [error, setError] = useState<string | null>(null)
   const form = useForm<JoinCompanyValues>({
     resolver: zodResolver(joinCompanySchema),
-    defaultValues: { name: '', mainAccountCode: '' },
+    defaultValues: { name: '', invitationCode: '' },
   })
 
   const onSubmit = async (v: JoinCompanyValues) => {
@@ -105,7 +105,7 @@ function JoinCompany({ phone }: { phone: PhoneStep }) {
     if (!phone.check()) return
     const res = await postJson('/api/onboarding/membership-requests', {
       name: v.name,
-      mainAccountCode: v.mainAccountCode,
+      invitationCode: v.invitationCode,
       ...phone.body,
     })
     // 접수되면 상태를 다시 읽어 대기 안내로 바뀐다
@@ -118,11 +118,11 @@ function JoinCompany({ phone }: { phone: PhoneStep }) {
       <form noValidate onSubmit={form.handleSubmit(onSubmit, phone.check)} className="space-y-4">
         <NameInput />
         <FormInput
-          name="mainAccountCode"
+          name="invitationCode"
           label={t('signup.accountCode')}
-          autoCapitalize="none"
+          autoCapitalize="characters"
           spellCheck={false}
-          placeholder="ben"
+          placeholder="ABCD1234EFGH"
           hint={t('signup.joinCodeHint')}
         />
         <ErrorAlert code={error} />

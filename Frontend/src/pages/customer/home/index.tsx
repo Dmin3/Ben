@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { currentUser, deposit, factories, notices, orders, todos } from '@/mocks/customer-home'
+import { useMe } from '../me'
+import { deposit, factories, notices, orders, todos } from '@/mocks/customer-home'
 import { BulkUploadDialog } from './bulk-upload-dialog'
 import { DepositCard } from './deposit-card'
 import { FactoryCard } from './factory-card'
@@ -12,13 +13,14 @@ import { TodoCard } from './todo-card'
 
 export default function CustomerHome() {
   const { t } = useTranslation()
+  const { data: me } = useMe()
   const [bulkOpen, setBulkOpen] = useState(false)
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-[22px] font-bold">{t('home.greeting', { name: currentUser.name })}</h1>
+          <h1 className="text-[22px] font-bold">{t('home.greeting', { name: me?.name ?? '' })}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             <Trans i18nKey="home.pending" values={{ count: todos.length }} components={{ b: <b className="text-warning" /> }} />
           </p>

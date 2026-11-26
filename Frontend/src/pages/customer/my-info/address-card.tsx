@@ -3,26 +3,25 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { addresses as initialAddresses } from '@/mocks/my-info'
+import type { MyAddress } from './data'
 import { AddressManageDialog } from './address-manage-dialog'
 import { EditButton } from './info-parts'
 
-export function AddressCard() {
+export function AddressCard({ addresses, canEdit }: { addresses: MyAddress[]; canEdit: boolean }) {
   const { t } = useTranslation()
-  // TODO(API): 배송지 목록 조회 API로 교체
-  const [addresses, setAddresses] = useState(initialAddresses)
   const [open, setOpen] = useState(false)
-
-  // 기본 배송지를 맨 위에
-  const sorted = [...addresses].sort((a, b) => Number(!!b.isDefault) - Number(!!a.isDefault))
+  // BE가 기본 배송지를 맨 위로 정렬해서 준다
+  const sorted = addresses
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('myInfo.address.title')}</CardTitle>
-        <CardAction>
-          <EditButton onClick={() => setOpen(true)}>{t('common.manage')}</EditButton>
-        </CardAction>
+        {canEdit && (
+          <CardAction>
+            <EditButton onClick={() => setOpen(true)}>{t('common.manage')}</EditButton>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="space-y-2.5">
         {sorted.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">{t('myInfo.address.empty')}</p>}
@@ -42,7 +41,7 @@ export function AddressCard() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <AddressManageDialog addresses={addresses} onChange={setAddresses} />
+          <AddressManageDialog addresses={addresses} />
         </DialogContent>
       </Dialog>
     </Card>

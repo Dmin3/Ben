@@ -1,8 +1,8 @@
 import { ClipboardList, Factory, House, Package, ShoppingBag, ShoppingCart, UserRound, Users, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet, useMatches } from 'react-router'
+import { Navigate, NavLink, Outlet, useMatches } from 'react-router'
 import { BottomTabBar, MobileHeader, Sidebar, type NavItem } from '@/components/layout/sidebar'
-import { currentUser } from '@/mocks/customer-home'
+import { useMe } from './me'
 import { useMembershipRequests } from './members/data'
 import { useCart } from './sourcing/data'
 
@@ -10,6 +10,8 @@ export default function CustomerLayout() {
   const { t } = useTranslation()
   const { data: requests = [] } = useMembershipRequests()
   const { data: cart = [] } = useCart()
+  const { data: me, error } = useMe()
+  const user = me ?? { name: '', company: '' }
   const hideTabBar = useMatches().some((m) => (m.handle as { hideTabBar?: boolean } | undefined)?.hideTabBar)
 
   const menu: NavItem[] = [
@@ -19,7 +21,7 @@ export default function CustomerLayout() {
     { to: '/products', label: t('nav.products'), icon: Package },
     { to: '/factories', label: t('nav.factories'), icon: Factory },
     { to: '/deposit', label: t('nav.deposit'), icon: Wallet },
-    ...(currentUser.role === 'OWNER'
+    ...(me?.isOwner
       ? [{ to: '/members', label: t('nav.members'), icon: Users, badge: requests.length }]
       : []),
     { to: '/me', label: t('nav.myInfo'), icon: UserRound },
@@ -38,11 +40,14 @@ export default function CustomerLayout() {
     </NavLink>
   )
 
+  // 로그인이 풀렸으면 로그인 화면으로 (BE API가 모두 로그인을 요구한다)
+  if ((error as { status?: number } | null)?.status === 401) return <Navigate to="/login" replace />
+
   return (
     <div className="flex min-h-svh">
-      <Sidebar items={menu} user={currentUser} />
+      <Sidebar items={menu} user={user} />
       <div className="min-w-0 flex-1">
-        <MobileHeader user={currentUser} profileTo="/me" extra={cartLink} />
+        <MobileHeader user={user} profileTo="/me" extra={cartLink} />
         {/* 모바일은 하단 탭 바에 가리지 않도록 아래 여백 확보 */}
         <main className="mx-auto max-w-7xl px-4 pt-6 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:px-8 lg:py-7">
           <Outlet />

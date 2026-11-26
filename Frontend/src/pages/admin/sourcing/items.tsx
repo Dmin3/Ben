@@ -18,7 +18,7 @@ const SIZE_PRESETS = ['F', 'S', 'M', 'L', 'XL']
 const PAGE_SIZE = 5
 
 type Form = Omit<SourcingItem, 'id' | 'price'> & { id?: string; price: string }
-const EMPTY: Form = { code: '', market: 'wanjia', shop: '', sizes: ['F'], colors: [], price: '', moq: '', lead: '', memo: '', photos: 0 }
+const EMPTY: Form = { code: '', market: 'wanjia', shop: '', sizes: [], colors: [], price: '', moq: '', lead: '', memo: '', photos: 0 }
 
 function Row({ label, sub, children }: { label: string; sub?: string; children: ReactNode }) {
   return (

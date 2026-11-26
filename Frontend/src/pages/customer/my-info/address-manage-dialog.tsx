@@ -9,18 +9,16 @@ import { Button } from '@/components/ui/button'
 import { DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import type { Address } from '@/mocks/my-info'
+import { deleteJson, patchJson, postJson, putJson } from '@/lib/api'
+import { useSaveMyInfo, type MyAddress as Address } from './data'
 import { DialogForm } from './info-parts'
 import { addressSchema, type AddressForm } from './schema'
 
-type Props = {
-  addresses: Address[]
-  onChange: (next: Address[]) => void
-}
 
 /** 배송지 관리 모달 내용. 목록 ↔ 입력 화면을 같은 모달 안에서 전환한다 */
-export function AddressManageDialog({ addresses, onChange }: Props) {
+export function AddressManageDialog({ addresses }: { addresses: Address[] }) {
   const { t } = useTranslation()
+  const save = useSaveMyInfo()
   // null: 목록 화면 / 'new': 추가 / Address: 수정
   const [editing, setEditing] = useState<Address | 'new' | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -34,15 +32,11 @@ export function AddressManageDialog({ addresses, onChange }: Props) {
       <AddressEditForm
         value={editing === 'new' ? undefined : editing}
         onCancel={() => setEditing(null)}
-        onSave={(v) => {
-          if (editing === 'new') {
-            // TODO(API): 배송지 추가 API. id는 서버가 발급
-            onChange([...addresses, { ...v, id: crypto.randomUUID(), region: '', isDefault: addresses.length === 0 }])
-            toast.success(t('myInfo.address.added'))
-          } else {
-            onChange(addresses.map((a) => (a.id === editing.id ? { ...a, ...v } : a)))
-            toast.success(t('myInfo.address.updated'))
-          }
+        onSave={async (v) => {
+          const isNew = editing === 'new'
+          const ok = await save(isNew ? postJson('/api/my-info/addresses', v) : patchJson(`/api/my-info/addresses/${editing.id}`, v))
+          if (!ok) return
+          toast.success(t(isNew ? 'myInfo.address.added' : 'myInfo.address.updated'))
           setEditing(null)
         }}
       />
@@ -62,7 +56,7 @@ export function AddressManageDialog({ addresses, onChange }: Props) {
 
       <RadioGroup
         value={defaultId}
-        onValueChange={(id) => onChange(addresses.map((a) => ({ ...a, isDefault: a.id === id })))}
+        onValueChange={(id) => save(putJson(`/api/my-info/addresses/${id}/default`))}
         aria-label={t('myInfo.address.defaultGroup')}
         className="gap-2.5"
       >
@@ -92,9 +86,8 @@ export function AddressManageDialog({ addresses, onChange }: Props) {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    onClick={() => {
-                      // TODO(API): 배송지 삭제 API
-                      onChange(addresses.filter((x) => x.id !== a.id))
+                    onClick={async () => {
+                      if (!(await save(deleteJson(`/api/my-info/addresses/${a.id}`)))) return
                       setConfirmDeleteId(null)
                       toast.success(t('myInfo.address.deleted'))
                     }}
@@ -146,7 +139,7 @@ function AddressEditForm({
   onCancel,
 }: {
   value?: Address
-  onSave: (v: AddressForm) => void
+  onSave: (v: AddressForm) => Promise<void>
   onCancel: () => void
 }) {
   const { t } = useTranslation()

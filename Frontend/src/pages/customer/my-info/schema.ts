@@ -8,17 +8,14 @@ const phone = z
   .trim()
   .regex(/^0\d{1,2}-\d{3,4}-\d{4}$/, 'validation.phone')
 
+// 사업자등록번호·사업자등록증은 BE가 내 정보에서 수정하지 않는다. 비워 두면 null로 보낸다
+const optional = z.string().trim().max(500)
 export const companySchema = z.object({
   name: required,
-  nameEn: required,
-  businessNo: z
-    .string()
-    .trim()
-    .regex(/^\d{3}-\d{2}-\d{5}$/, 'validation.businessNo'),
-  ceo: required,
-  businessType: required,
-  address: required,
-  certificate: z.string(),
+  nameEn: optional,
+  ceo: optional,
+  businessType: optional,
+  address: optional,
 })
 export type CompanyForm = z.infer<typeof companySchema>
 
