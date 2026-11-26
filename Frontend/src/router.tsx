@@ -23,12 +23,15 @@ import AdminOrders from '@/pages/admin/orders'
 import AdminOrderDetail from '@/pages/admin/orders/detail'
 import IncomingOrders from '@/pages/admin/orders/incoming'
 import AdminSettings from '@/pages/admin/settings'
+import SourcingItems from '@/pages/admin/sourcing/items'
 import ComingSoon from '@/pages/coming-soon'
 import Deposit from '@/pages/customer/deposit'
 import Factories from '@/pages/customer/factories'
 import CustomerHome from '@/pages/customer/home'
 import CustomerLayout from '@/pages/customer/layout'
 import Members from '@/pages/customer/members'
+import Sourcing from '@/pages/customer/sourcing'
+import SourcingCart from '@/pages/customer/sourcing/cart'
 import MyInfo from '@/pages/customer/my-info'
 import NewOrder from '@/pages/customer/new-order'
 import Notices from '@/pages/customer/notices'
@@ -65,6 +68,8 @@ export const router = createBrowserRouter([
       { path: 'deposit', element: <Deposit /> },
       { path: 'me', element: <MyInfo /> },
       { path: 'members', element: <Members /> },
+      { path: 'sourcing', element: <Sourcing /> },
+      { path: 'sourcing/cart', element: <SourcingCart /> },
       { path: 'notices', element: <Notices /> },
       { path: 'orders/:id', element: <OrderDetail /> },
       // 입력 화면은 모바일 하단 탭을 숨기고 자체 버튼 바를 쓴다
@@ -81,6 +86,10 @@ export const router = createBrowserRouter([
       { path: 'orders', element: <AdminOrders /> },
       { path: 'orders/incoming', element: <IncomingOrders /> },
       { path: 'orders/:id', element: <AdminOrderDetail /> },
+      { path: 'sourcing/items', element: <SourcingItems /> },
+      // 사입 주문·입고검수는 시안을 받으면 만든다
+      { path: 'sourcing/orders', element: <ComingSoon backTo="/admin" /> },
+      { path: 'sourcing/inbound', element: <ComingSoon backTo="/admin" /> },
       { path: 'deposit', element: <AdminDeposit /> },
       { path: 'deposit/approvals', element: <DepositApprovals /> },
       { path: 'factories', element: <AdminFactories /> },

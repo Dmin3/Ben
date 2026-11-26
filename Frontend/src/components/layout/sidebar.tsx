@@ -1,5 +1,5 @@
 import { Settings, type LucideIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import logoDark from '@/assets/logo-dark.svg'
@@ -92,7 +92,7 @@ export function Sidebar({ items, user }: { items: NavItem[]; user: User }) {
 }
 
 /** 모바일(lg 미만): 상단 로고 + 설정 + 내 정보 */
-export function MobileHeader({ user, profileTo }: { user: User; profileTo: string }) {
+export function MobileHeader({ user, profileTo, extra }: { user: User; profileTo: string; extra?: ReactNode }) {
   const { t } = useTranslation()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -100,6 +100,7 @@ export function MobileHeader({ user, profileTo }: { user: User; profileTo: strin
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-sidebar px-4 lg:hidden">
       <Logo className="h-9" />
       <div className="flex items-center gap-1">
+        {extra}
         <button
           type="button"
           onClick={() => setSettingsOpen(true)}

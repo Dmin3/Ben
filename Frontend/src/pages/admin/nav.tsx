@@ -31,6 +31,9 @@ const MENU: Group[] = [
     children: [
       { key: 'orderSummary', to: '/admin/orders' },
       { key: 'newOrders', to: '/admin/orders/incoming', count: adminCounts.newOrders, tone: 'danger' },
+      { key: 'sourcingItems', to: '/admin/sourcing/items' },
+      { key: 'sourcingOrders', to: '/admin/sourcing/orders' },
+      { key: 'sourcingInbound', to: '/admin/sourcing/inbound' },
     ],
   },
   {
