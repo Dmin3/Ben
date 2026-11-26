@@ -28,8 +28,7 @@ export const staff: Staff[] = [
 ]
 export const managers = staff.filter((s) => s.role === 'MANAGER')
 
-// ponytail: 로그인한 관리자는 /api/auth/me 연동 전까지 고정값. role을 바꿔 메뉴 권한을 확인할 수 있다
-export const adminUser = { name: '김대표', role: 'SUPER' as AdminRole }
+// 로그인한 관리자는 pages/admin/me.ts (useAdminUser)
 
 /** 사이드바·홈 숫자 (예치금 승인 대기 수는 예치금 내역에서 센다) */
 export const adminCounts = { newOrders: 3 }

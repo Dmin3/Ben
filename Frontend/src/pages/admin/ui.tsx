@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { ADMIN_STEPS, adminUser } from '@/mocks/admin'
+import { ADMIN_STEPS } from '@/mocks/admin'
 import { panel } from './styles'
+import { useAdminUser } from './me'
 
 /** 관리자 화면 공통 부품. 시안의 카드·제목·지표·단계 막대를 한 모양으로 맞춘다 */
 
@@ -186,7 +187,7 @@ export function Pick({
 /** 최고관리자 전용 화면에 다른 역할이 들어오면 막는다 */
 export function SuperOnly({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
-  if (adminUser.role === 'SUPER') return children
+  if (useAdminUser().role === 'SUPER') return children
   return <p className={cn(panel, 'py-16 text-center text-sm text-muted-foreground')}>{t('adminPages.superOnly')}</p>
 }
 

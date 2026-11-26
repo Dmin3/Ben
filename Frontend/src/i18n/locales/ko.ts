@@ -536,6 +536,7 @@ const ko = {
     },
   },
   auth: {
+    tabs: { customer: '고객 로그인', admin: '관리자 로그인' },
     title: '로그인',
     email: '이메일',
     emailPlaceholder: 'example@company.co.kr',
@@ -558,6 +559,8 @@ const ko = {
     socialStart: { kakao: '카카오로 시작하기', naver: '네이버로 시작하기', google: 'Google로 시작하기' },
     errors: {
       INVALID_CREDENTIALS: '아이디 또는 비밀번호가 맞지 않아요.',
+      NOT_ADMIN: '관리자계정이 아니에요. 고객 로그인을 이용해 주세요.',
+      USE_ADMIN_LOGIN: '관리자계정이에요. 관리자 로그인을 이용해 주세요.',
       SSO_LOGIN_REQUIRED: '간편 로그인으로 가입한 계정이에요. 아래 간편 로그인을 이용해 주세요.',
       ACCOUNT_DISABLED: '사용이 중지된 계정이에요. BEN 담당자에게 문의해 주세요.',
       MEMBERSHIP_INACTIVE: '고객사 계정이 비활성 상태예요. 고객사 관리자에게 문의해 주세요.',

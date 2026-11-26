@@ -2,7 +2,7 @@ import { ClipboardList, Factory, House, Package, ShoppingBag, ShoppingCart, User
 import { useTranslation } from 'react-i18next'
 import { Navigate, NavLink, Outlet, useMatches } from 'react-router'
 import { BottomTabBar, MobileHeader, Sidebar, type NavItem } from '@/components/layout/sidebar'
-import { useMe } from './me'
+import { useMe } from '@/lib/me'
 import { useMembershipRequests } from './members/data'
 import { useCart } from './sourcing/data'
 
@@ -42,6 +42,8 @@ export default function CustomerLayout() {
 
   // 로그인이 풀렸으면 로그인 화면으로 (BE API가 모두 로그인을 요구한다)
   if ((error as { status?: number } | null)?.status === 401) return <Navigate to="/login" replace />
+  // 수퍼관리자·관리자계정은 관리자 화면으로
+  if (me?.isAdmin) return <Navigate to="/admin" replace />
 
   return (
     <div className="flex min-h-svh">

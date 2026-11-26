@@ -26,6 +26,8 @@ const adminPages = {
   draftSaved: '임시저장했어요',
   saved: '저장했어요',
   roles: { SUPER: '최고관리자', MANAGER: '매니저', FINANCE: '재무 담당', VIEWER: '보기 전용' },
+  /** 로그인한 계정의 BE 권한 이름 (/api/auth/me accountRole) */
+  accountRoles: { SUPER_ADMIN: '수퍼관리자', ADMIN: '관리자계정' },
 
   home: {
     greeting: '안녕하세요, {{name}}님',

@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +9,9 @@ import { Field } from '@/components/form/field'
 import { PasswordInput } from '@/components/form/password-input'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { postJson } from '@/lib/api'
+import { getJson, postJson } from '@/lib/api'
+import { isAdminRole, type AuthMe } from '@/lib/me'
+import { cn } from '@/lib/utils'
 import { AuthShell, ErrorAlert } from '../auth-shell'
 import { SocialButtons } from './social-buttons'
 
@@ -21,9 +24,12 @@ type LoginValues = z.infer<typeof loginSchema>
 
 const inputClass = 'h-12 rounded-lg px-4 text-[15px]'
 
-function LoginForm({ onError }: { onError: (code: string | null) => void }) {
+type Mode = 'customer' | 'admin'
+
+function LoginForm({ mode, onError }: { mode: Mode; onError: (code: string | null) => void }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const {
     register,
     handleSubmit,
@@ -37,8 +43,17 @@ function LoginForm({ onError }: { onError: (code: string | null) => void }) {
   const onSubmit = async (v: LoginValues) => {
     onError(null)
     const res = await postJson('/api/auth/main/login', v)
-    if (res.ok) navigate('/', { replace: true })
-    else onError(res.code)
+    if (!res.ok) return onError(res.code)
+    // 고객·관리자 모두 같은 로그인 API. 로그인한 계정이 고른 탭과 맞는지 확인한다
+    const me = await getJson<AuthMe>('/api/auth/me')
+    if (!me.ok) return onError(me.code)
+    const admin = isAdminRole(me.data.accountRole)
+    if (admin !== (mode === 'admin')) {
+      await postJson('/api/auth/logout', {})
+      return onError(admin ? 'USE_ADMIN_LOGIN' : 'NOT_ADMIN')
+    }
+    queryClient.clear() // 이전 사용자의 화면 데이터가 남지 않게
+    navigate(admin ? '/admin' : '/', { replace: true })
   }
 
   return (
@@ -71,9 +86,11 @@ function LoginForm({ onError }: { onError: (code: string | null) => void }) {
             <input type="checkbox" className="size-4 accent-primary" {...register('remember')} />
             {t('auth.remember')}
           </label>
-          <Link to="/find-account" className="hover:text-foreground">
-            {t('auth.findAccount')}
-          </Link>
+          {mode === 'customer' && (
+            <Link to="/find-account" className="hover:text-foreground">
+              {t('auth.findAccount')}
+            </Link>
+          )}
         </div>
 
         <Button type="submit" className="h-12 w-full rounded-lg text-[15px] font-bold" disabled={isSubmitting}>
@@ -81,27 +98,33 @@ function LoginForm({ onError }: { onError: (code: string | null) => void }) {
         </Button>
       </form>
 
-      <div className="flex items-center gap-3 text-xs text-subtle-foreground">
-        <span className="h-px flex-1 bg-border" />
-        {t('auth.or')}
-        <span className="h-px flex-1 bg-border" />
-      </div>
+      {mode === 'customer' && (
+        <>
+          <div className="flex items-center gap-3 text-xs text-subtle-foreground">
+            <span className="h-px flex-1 bg-border" />
+            {t('auth.or')}
+            <span className="h-px flex-1 bg-border" />
+          </div>
 
-      <SocialButtons />
+          <SocialButtons />
 
-      <p className="text-center text-[13px] text-muted-foreground">
-        {t('auth.noAccount')}
-        <Link to="/signup" className="ml-2 font-bold text-primary hover:underline">
-          {t('auth.signup')}
-        </Link>
-      </p>
+          <p className="text-center text-[13px] text-muted-foreground">
+            {t('auth.noAccount')}
+            <Link to="/signup" className="ml-2 font-bold text-primary hover:underline">
+              {t('auth.signup')}
+            </Link>
+          </p>
+        </>
+      )}
     </div>
   )
 }
 
 export default function Login() {
   const { t } = useTranslation()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  // ?as=admin: 관리자 로그인 탭 (관리자 화면에서 로그인이 풀리면 이 탭으로 온다)
+  const mode: Mode = params.get('as') === 'admin' ? 'admin' : 'customer'
   // 간편 로그인 실패 시 /auth/callback 이 ?error=코드 로 보내준다
   const [error, setError] = useState(params.get('error'))
 
@@ -110,7 +133,27 @@ export default function Login() {
       <div className="mb-5 empty:hidden">
         <ErrorAlert code={error} />
       </div>
-      <LoginForm onError={setError} />
+      <div role="tablist" aria-label={t('auth.title')} className="mb-6 grid grid-cols-2 rounded-xl bg-muted p-1">
+        {(['customer', 'admin'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => {
+              setError(null)
+              setParams(m === 'admin' ? { as: 'admin' } : {}, { replace: true })
+            }}
+            className={cn(
+              'h-10 rounded-lg text-sm font-semibold transition-colors',
+              mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t(`auth.tabs.${m}`)}
+          </button>
+        ))}
+      </div>
+      <LoginForm key={mode} mode={mode} onError={setError} />
     </AuthShell>
   )
 }

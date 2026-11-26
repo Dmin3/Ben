@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input'
 import { downloadCsv } from '@/lib/csv'
 import { cny, signed } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { adminUser, customers, findCustomer } from '@/mocks/admin'
+import { customers, findCustomer } from '@/mocks/admin'
 import { depositSummary, type DepositEntry } from '@/mocks/admin-finance'
 import { panel, td, th } from '../styles'
 import { PageHead, Panel, Pick, Stat } from '../ui'
 import { useDepositActions, useDepositEntries } from './data'
+import { useAdminUser } from '../me'
 
 type Tab = 'all' | 'in' | 'use' | 'pending' | 'rejected'
 const inTab = (e: DepositEntry, tab: Tab) => tab === 'all' || (tab === 'in' || tab === 'use' ? e.type === tab : e.state === tab)
@@ -25,6 +26,7 @@ function EntryForm() {
   const { t } = useTranslation()
   const p = 'adminPages.deposit.form'
   const { add } = useDepositActions()
+  const admin = useAdminUser()
   const [customerId, setCustomerId] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [sign, setSign] = useState<1 | -1>(-1)
@@ -40,7 +42,7 @@ function EntryForm() {
   }
   const submit = () => {
     if (!customer || !text.trim() || !value) return toast.error(t(`${p}.required`))
-    add({ customerId: customer.id, type: value > 0 ? 'in' : 'use', text: text.trim(), amount: value, balanceAfter: customer.balance + value, date: date.replaceAll('-', '.'), by: adminUser.name })
+    add({ customerId: customer.id, type: value > 0 ? 'in' : 'use', text: text.trim(), amount: value, balanceAfter: customer.balance + value, date: date.replaceAll('-', '.'), by: admin.name })
     toast.success(t(`${p}.submitted`))
     reset()
   }

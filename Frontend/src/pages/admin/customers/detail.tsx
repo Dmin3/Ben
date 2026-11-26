@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cny, signed } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { adminOrders, adminUser, findCustomer } from '@/mocks/admin'
+import { adminOrders, findCustomer } from '@/mocks/admin'
 import { useDepositEntries } from '../deposit/data'
 import { panel, td, th } from '../styles'
 import { PageHead, Panel, Stat, StepBar } from '../ui'
+import { useAdminUser } from '../me'
 
 /** 고객사 상세 (시안 없음): 정보·수수료율, 진행 중 오더, 최근 예치금 내역 */
 export default function AdminCustomerDetail() {
@@ -19,7 +20,9 @@ export default function AdminCustomerDetail() {
   const c = findCustomer(useParams().id)
   const { data: entries = [] } = useDepositEntries()
   const [fee, setFee] = useState(String(c?.feeRate ?? ''))
-  const canEditFee = adminUser.role === 'SUPER' || adminUser.role === 'FINANCE'
+  const admin = useAdminUser()
+  // 수수료율은 수퍼관리자만 (BE에 재무 역할이 없다)
+  const canEditFee = admin.role === 'SUPER'
 
   if (!c) {
     return (

@@ -538,6 +538,7 @@ const zh: Messages = {
     },
   },
   auth: {
+    tabs: { customer: '客户登录', admin: '管理员登录' },
     title: '登录',
     email: '邮箱',
     emailPlaceholder: 'example@company.com',
@@ -560,6 +561,8 @@ const zh: Messages = {
     socialStart: { kakao: '使用 Kakao 开始', naver: '使用 Naver 开始', google: '使用 Google 开始' },
     errors: {
       INVALID_CREDENTIALS: '账号或密码不正确。',
+      NOT_ADMIN: '这不是管理员账号，请使用客户登录。',
+      USE_ADMIN_LOGIN: '这是管理员账号，请使用管理员登录。',
       SSO_LOGIN_REQUIRED: '该账号通过快捷登录注册，请使用下方快捷登录。',
       ACCOUNT_DISABLED: '该账号已停用，请联系 BEN 负责人。',
       MEMBERSHIP_INACTIVE: '公司账号处于停用状态，请联系公司管理员。',

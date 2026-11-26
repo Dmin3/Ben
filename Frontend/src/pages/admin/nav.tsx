@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { NavLink, useLocation } from 'react-router'
 import type { Messages } from '@/i18n/locales/ko'
 import { cn } from '@/lib/utils'
-import { adminCounts, adminUser } from '@/mocks/admin'
+import { adminCounts } from '@/mocks/admin'
 import { useDepositEntries } from './deposit/data'
+import { useAdminUser } from './me'
 
 type Tone = 'danger' | 'warning'
 type NavKey = keyof Messages['admin']['nav']
@@ -101,7 +102,7 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const [closed, setClosed] = useState<string[]>([])
-  const isSuper = adminUser.role === 'SUPER'
+  const isSuper = useAdminUser().role === 'SUPER'
   // 승인 대기 수는 예치금 화면과 같은 캐시에서 센다 (승인하면 바로 줄어든다)
   const { data: entries = [] } = useDepositEntries()
   const countOf = (c: Leaf) => (c.key === 'depositApprovals' ? entries.filter((e) => e.state === 'pending').length : c.count)

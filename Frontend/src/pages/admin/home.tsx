@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { cn } from '@/lib/utils'
-import { ADMIN_STEPS, INTERNAL_STEPS, adminCounts, adminNotices, adminUser, homeStats } from '@/mocks/admin'
+import { ADMIN_STEPS, INTERNAL_STEPS, adminCounts, adminNotices, homeStats } from '@/mocks/admin'
 import { panel } from './styles'
 import { Panel } from './ui'
+import { useAdminUser } from './me'
 
 function Kpi({ to, icon, iconClass, label, value, note, noteClass, className }: {
   to: string
@@ -197,12 +198,13 @@ function RecentIssues() {
 /** 관리자 홈: 신규 오더 바로가기, 지표, 단계별 현황, 공지, 거래액, 이슈 */
 export default function AdminHome() {
   const { t } = useTranslation()
+  const admin = useAdminUser()
   const k = 'adminPages.home.kpi'
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-start justify-between gap-4 pb-1">
         <div>
-          <h1 className="text-2xl font-bold">{t('adminPages.home.greeting', { name: adminUser.name })}</h1>
+          <h1 className="text-2xl font-bold">{t('adminPages.home.greeting', { name: admin.name })}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('adminPages.home.sub')}</p>
         </div>
         <Link

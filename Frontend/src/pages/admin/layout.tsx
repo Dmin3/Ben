@@ -1,13 +1,14 @@
 import { Bell, Menu, Search, Settings } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Outlet } from 'react-router'
+import { Navigate, Outlet } from 'react-router'
 import { toast } from 'sonner'
 import { Logo } from '@/components/layout/sidebar'
 import { SettingsDialog } from '@/components/layout/settings-dialog'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { adminCounts, adminUser } from '@/mocks/admin'
+import { adminCounts } from '@/mocks/admin'
 import { AdminNav } from './nav'
+import { useMe } from '@/lib/me'
 
 function Brand() {
   const { t } = useTranslation()
@@ -23,6 +24,7 @@ function Brand() {
 export default function AdminLayout() {
   const { t, i18n } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { data: me, error } = useMe()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const alerts = adminCounts.newOrders
   // ponytail: 날짜는 화면을 연 시점 기준. 자정을 넘겨 켜두면 새로고침 전까지 어제 날짜
@@ -43,14 +45,20 @@ export default function AdminLayout() {
       className="flex w-full items-center gap-2.5 rounded-xl bg-muted p-2.5 text-left transition-colors hover:bg-accent"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-sm font-bold text-background">
-        {adminUser.name[0]}
+        {me?.name[0]}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{adminUser.name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{t(`adminPages.roles.${adminUser.role}`)}</span>
+        <span className="block truncate text-sm font-semibold">{me?.name}</span>
+        <span className="block truncate text-xs text-muted-foreground">{me?.isAdmin && t(`adminPages.accountRoles.${me.accountRole as 'SUPER_ADMIN' | 'ADMIN'}`)}</span>
       </span>
     </button>
   )
+
+  // 관리자 화면은 수퍼관리자·관리자계정만. 로그인이 풀렸으면 관리자 로그인으로, 고객 계정은 고객 홈으로
+  if ((error as { status?: number } | null)?.status === 401) return <Navigate to="/login?as=admin" replace />
+  if (error) return null
+  if (!me) return null
+  if (!me.isAdmin) return <Navigate to="/" replace />
 
   return (
     <div className="flex min-h-svh">

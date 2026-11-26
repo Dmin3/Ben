@@ -547,6 +547,7 @@ const en: Messages = {
     },
   },
   auth: {
+    tabs: { customer: 'Customer', admin: 'Admin' },
     title: 'Log in',
     email: 'Email',
     emailPlaceholder: 'example@company.com',
@@ -569,6 +570,8 @@ const en: Messages = {
     socialStart: { kakao: 'Continue with Kakao', naver: 'Continue with Naver', google: 'Continue with Google' },
     errors: {
       INVALID_CREDENTIALS: 'Incorrect ID or password.',
+      NOT_ADMIN: 'This is not an admin account. Please use customer login.',
+      USE_ADMIN_LOGIN: 'This is an admin account. Please use admin login.',
       SSO_LOGIN_REQUIRED: 'This account was created with social login. Please use social login below.',
       ACCOUNT_DISABLED: 'This account has been disabled. Please contact your BEN manager.',
       MEMBERSHIP_INACTIVE: 'Your company account is inactive. Please contact your company admin.',
